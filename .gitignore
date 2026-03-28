@@ -1,0 +1,21 @@
+# 临时调试文件
+statusline_debug.sh
+test_input.sh
+
+# Claude 自动生成
+.claude/
+.agents/
+plans/
+
+# 技能锁定文件
+skills-lock.json
+
+# 旧版/测试文件
+transcript-parser.js
+test-transcript.jsonl
+
+# Claude 项目记忆文件
+CLAUDE.md
+
+# 源代码备份（压缩后的工作文件已提交）
+scripts/*.src.js

@@ -1,0 +1,20 @@
+{
+  "bar_length": 10,
+  "colors": {
+    "thresholds": {
+      "green": 55,
+      "yellow": 75
+    },
+    "branch": "33"
+  },
+  "panel": {
+    "git": {
+      "show_git": true,
+      "show_git_changes": true
+    },
+    "show_time": true,
+    "show_tools": true,
+    "show_agents": true,
+    "show_todos": true
+  }
+}

@@ -1,0 +1,410 @@
+#!/bin/bash
+# Claude Code Statusline 安装脚本
+# 支持安装到 user 级别
+
+# 不设置 set -e，改为手动处理错误，防止窗口自动关闭
+# set -e
+
+# 颜色定义
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# 脚本所在目录
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# 项目根目录（install.sh 位于 bin/ 下）
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# 默认安装路径
+DEFAULT_INSTALL_DIR="$HOME/.claude/statusline"
+
+# 打印带颜色的消息
+print_info() {
+    echo -e "${BLUE}[INFO]${NC} $1"
+}
+
+# 暂停等待用户按键
+pause() {
+    echo ""
+    echo -n "按任意键继续..."
+    read -n 1 -s < /dev/tty 2>/dev/null || read -n 1 -s
+    echo ""
+}
+
+print_success() {
+    echo -e "${GREEN}[SUCCESS]${NC} $1"
+}
+
+print_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
+}
+
+print_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+# 显示帮助信息
+show_help() {
+    cat << 'EOF'
+Claude Code Statusline 安装脚本
+
+用法: bash bin/install.sh [选项]
+
+选项:
+    -h, --help          显示帮助信息
+    -d, --dir DIR       指定安装目录 (默认: ~/.claude/statusline)
+    -u, --uninstall     卸载 statusline
+    -c, --check         检查安装状态
+
+示例:
+    bash bin/install.sh                    # 安装到默认目录
+    bash bin/install.sh -d /custom/path    # 安装到自定义目录
+    bash bin/install.sh -u                 # 卸载
+    bash bin/install.sh -c                 # 检查安装状态
+
+EOF
+}
+
+# 检查依赖
+check_dependencies() {
+    print_info "检查依赖..."
+
+    # 检查 bash
+    if ! command -v bash &> /dev/null; then
+        print_error "需要 bash 环境"
+        exit 1
+    fi
+
+    # 检查 git (用于 Git 状态显示)
+    if ! command -v git &> /dev/null; then
+        print_warning "未检测到 git，Git 状态显示功能将不可用"
+    fi
+
+    print_success "依赖检查通过"
+}
+
+# 创建安装目录
+create_install_dir() {
+    local install_dir="$1"
+
+    print_info "创建安装目录: $install_dir"
+
+    if [ -d "$install_dir" ]; then
+        print_warning "目录已存在，将备份现有配置"
+        backup_dir="${install_dir}.backup.$(date +%Y%m%d_%H%M%S)"
+        cp -r "$install_dir" "$backup_dir"
+        print_info "已备份到: $backup_dir"
+        rm -rf "$install_dir"
+    fi
+
+    mkdir -p "$install_dir/providers"
+    print_success "安装目录创建成功"
+}
+
+# 复制文件
+copy_files() {
+    local install_dir="$1"
+
+    print_info "复制文件..."
+
+    # 复制主脚本
+    cp "$SCRIPT_DIR/statusline.sh" "$install_dir/"
+    chmod +x "$install_dir/statusline.sh"
+
+    # 复制配置文件
+    cp "$PROJECT_ROOT/config/config.json" "$install_dir/"
+
+    # 复制 provider 脚本
+    if [ -d "$PROJECT_ROOT/config/providers" ]; then
+        cp "$PROJECT_ROOT/config/providers/"*.sh "$install_dir/providers/" 2>/dev/null || true
+        chmod +x "$install_dir/providers/"*.sh 2>/dev/null || true
+    fi
+
+    # 复制 transcript 解析器
+    if [ -f "$PROJECT_ROOT/scripts/transcript-parser-lite.js" ]; then
+        cp "$PROJECT_ROOT/scripts/transcript-parser-lite.js" "$install_dir/"
+    fi
+
+    print_success "文件复制完成"
+}
+
+# 配置 Claude Code settings.json
+configure_claude() {
+    local install_dir="$1"
+    local settings_file="$HOME/.claude/settings.json"
+
+    print_info "配置 Claude Code..."
+
+    # 确保 .claude 目录存在
+    mkdir -p "$HOME/.claude"
+
+    # 生成 command 路径：默认目录用 ~/.claude 以兼容多端，自定义目录保留完整路径
+    if [ "$install_dir" = "$HOME/.claude/statusline" ]; then
+        statusline_cmd="bash ~/.claude/statusline/statusline.sh"
+    else
+        statusline_cmd="bash $install_dir/statusline.sh"
+    fi
+
+    print_statusLine_sample() {
+        cat << EOF
+
+{
+  "statusLine": {
+    "command": "$statusline_cmd",
+    "type": "command"
+  }
+}
+
+EOF
+    }
+
+    # 读取现有配置或创建新配置
+    if [ -f "$settings_file" ]; then
+        # 检查是否已有 statusLine 配置
+        if grep -q '"statusLine"' "$settings_file" 2>/dev/null; then
+            print_warning "settings.json 中已有 statusLine 配置，请手动确认是否需要更新:"
+            print_statusLine_sample
+        else
+            # 没有 statusLine 时自动添加
+            if command -v python3 &> /dev/null; then
+                cp "$settings_file" "${settings_file}.backup.$(date +%Y%m%d_%H%M%S)"
+                python3 << PYEOF
+import json
+
+settings_file = "$settings_file"
+install_dir = "$install_dir"
+
+try:
+    with open(settings_file, 'r', encoding='utf-8') as f:
+        config = json.load(f)
+except Exception as e:
+    print(f"读取配置失败: {e}")
+    config = {}
+
+install_cmd = "$statusline_cmd"
+config['statusLine'] = {
+    "command": install_cmd,
+    "type": "command"
+}
+
+with open(settings_file, 'w', encoding='utf-8') as f:
+    json.dump(config, f, indent=2, ensure_ascii=False)
+
+print("配置已更新")
+PYEOF
+                print_success "settings.json 配置完成"
+            else
+                print_warning "未检测到 Python3，请手动编辑 $settings_file 添加以下配置:"
+                print_statusLine_sample
+            fi
+        fi
+    else
+        # 创建新配置文件
+        cat > "$settings_file" << EOF
+{
+  "statusLine": {
+    "command": "bash $install_dir/statusline.sh",
+    "type": "command"
+  }
+}
+EOF
+        print_success "创建新配置文件: $settings_file"
+    fi
+}
+
+# 验证安装
+verify_installation() {
+    local install_dir="$1"
+
+    print_info "验证安装..."
+
+    # 检查关键文件
+    if [ ! -f "$install_dir/statusline.sh" ]; then
+        print_error "主脚本未找到"
+        return 1
+    fi
+
+    if [ ! -f "$install_dir/config.json" ]; then
+        print_error "配置文件未找到"
+        return 1
+    fi
+
+    # 测试脚本执行
+    test_input='{"cwd":"/home/user/test","display_name":"Claude Sonnet 4.6","used_percentage":30}'
+    if ! echo "$test_input" | bash "$install_dir/statusline.sh" > /dev/null 2>&1; then
+        print_warning "脚本测试执行失败，可能需要检查依赖"
+    else
+        print_success "脚本测试通过"
+    fi
+
+    print_success "验证完成"
+}
+
+# 卸载
+uninstall() {
+    local install_dir="${1:-$DEFAULT_INSTALL_DIR}"
+    local settings_file="$HOME/.claude/settings.json"
+
+    print_info "开始卸载..."
+
+    # 删除安装目录
+    if [ -d "$install_dir" ]; then
+        rm -rf "$install_dir"
+        print_success "已删除: $install_dir"
+    fi
+
+    # 从 settings.json 中移除配置
+    if [ -f "$settings_file" ]; then
+        if command -v python3 &> /dev/null; then
+            python3 << PYEOF
+import json
+
+settings_file = "$settings_file"
+
+try:
+    with open(settings_file, 'r', encoding='utf-8') as f:
+        config = json.load(f)
+
+    if 'statusLine' in config:
+        del config['statusLine']
+        with open(settings_file, 'w', encoding='utf-8') as f:
+            json.dump(config, f, indent=2, ensure_ascii=False)
+        print("已从 settings.json 移除 statusline 配置")
+except Exception as e:
+    print(f"处理 settings.json 时出错: {e}")
+PYEOF
+        else
+            print_warning "请手动从 $settings_file 中移除 statusLine 配置"
+        fi
+    fi
+
+    print_success "卸载完成"
+    print_info "请在 Claude Code 中运行 /reload-plugins 以生效"
+}
+
+# 检查安装状态
+check_status() {
+    local install_dir="${1:-$DEFAULT_INSTALL_DIR}"
+    local settings_file="$HOME/.claude/settings.json"
+
+    print_info "检查安装状态..."
+
+    echo ""
+    echo "安装目录: $install_dir"
+    if [ -d "$install_dir" ]; then
+        echo -e "  状态: ${GREEN}已安装${NC}"
+        echo "  文件列表:"
+        ls -la "$install_dir" | tail -n +2 | awk '{print "    " $9 " (" $5 " bytes)"}'
+    else
+        echo -e "  状态: ${RED}未安装${NC}"
+    fi
+
+    echo ""
+    echo "Claude Code 配置: $settings_file"
+    if [ -f "$settings_file" ]; then
+        if grep -q '"statusLine"' "$settings_file" 2>/dev/null; then
+            echo -e "  状态: ${GREEN}已配置${NC}"
+            grep -A2 '"statusLine"' "$settings_file" | head -3
+        else
+            echo -e "  状态: ${YELLOW}未配置${NC}"
+        fi
+    else
+        echo -e "  状态: ${RED}配置文件不存在${NC}"
+    fi
+
+    echo ""
+    echo "环境变量:"
+    if [ -n "$CLAUDE_STATUSLINE_DIR" ]; then
+        echo -e "  CLAUDE_STATUSLINE_DIR: ${GREEN}$CLAUDE_STATUSLINE_DIR${NC}"
+    else
+        echo -e "  CLAUDE_STATUSLINE_DIR: ${YELLOW}未设置 (使用默认值)${NC}"
+    fi
+}
+
+# 主函数
+main() {
+    local install_dir="$DEFAULT_INSTALL_DIR"
+    local action="install"
+
+    # 解析参数
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -h|--help)
+                show_help
+                exit 0
+                ;;
+            -d|--dir)
+                install_dir="$2"
+                shift 2
+                ;;
+            -u|--uninstall)
+                action="uninstall"
+                shift
+                ;;
+            -c|--check)
+                action="check"
+                shift
+                ;;
+            *)
+                print_error "未知选项: $1"
+                show_help
+                exit 1
+                ;;
+        esac
+    done
+
+    # 执行操作
+    case $action in
+        install)
+            echo "========================================"
+            echo "  Claude Code Statusline 安装程序"
+            echo "========================================"
+            echo ""
+
+            check_dependencies
+            create_install_dir "$install_dir"
+            copy_files "$install_dir"
+            configure_claude "$install_dir"
+            verify_installation "$install_dir"
+
+            echo ""
+            echo "========================================"
+            print_success "安装完成！"
+            echo "========================================"
+            echo ""
+            echo "安装目录: $install_dir"
+            echo ""
+            echo "下一步:"
+            echo "  1. 在 Claude Code 中运行: /reload-plugins"
+            echo "  2. 查看状态栏是否正常显示"
+            echo ""
+            echo "自定义配置:"
+            echo "  编辑 $install_dir/config.json"
+            echo ""
+            pause
+            ;;
+        uninstall)
+            uninstall "$install_dir"
+            pause
+            ;;
+        check)
+            check_status "$install_dir"
+            pause
+            ;;
+    esac
+}
+
+# 运行主函数
+main "$@"
+exit_code=$?
+
+# 如果出错，暂停显示错误信息
+if [ $exit_code -ne 0 ]; then
+    echo ""
+    print_error "脚本执行出错 (退出码: $exit_code)"
+    pause
+fi
+
+exit $exit_code
