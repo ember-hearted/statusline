@@ -47,7 +47,8 @@ parse_config() {
                             # 从对象开始位置提取，尝试匹配花括号
                             local obj_content=$(echo "$current" | tail -c +$((obj_start + 1)))
                             # 简单匹配：找到第一个完整的 {...}
-                            current=$(echo "$obj_content" | awk '{braces=0; start=0; for(i=1;i<=length($0);i++){c=substr($0,i,1); if(c=="{"){braces++; if(start==0) start=i} else if(c=="}"){braces--; if(braces==0 && start>0){print substr($0,start,i-start+1); exit}}}')
+                            # 使用 sed 匹配花括号对
+                            current=$(echo "$obj_content" | sed 's/[^{]*\({\).*/\1/; :a; N; s/\n//; ta' | head -c 1000 | sed 's/^{\([^{}]*\)}.*/\1/')
                         else
                             found=false
                             break
@@ -82,7 +83,7 @@ yellow_threshold=$(parse_config "colors.thresholds.yellow" "75")
 bar_length=$(parse_config "bar_length" "10")
 show_git=$(parse_config "panel.git.show_git" "true")
 show_time=$(parse_config "panel.show_time" "true")
-branch_color=$(parse_config "colors.branch" "33")  # 默认橙色(33)
+branch_color=$(parse_config "colors.branch" "33" | tr -d '"')  # 默认橙色(33)，确保去掉引号
 show_tools=$(parse_config "panel.show_tools" "true")
 show_agents=$(parse_config "panel.show_agents" "true")
 show_todos=$(parse_config "panel.show_todos" "true")
