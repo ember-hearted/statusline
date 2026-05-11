@@ -7,6 +7,10 @@
     },
     "branch": "33"
   },
+  "balance": {
+    "provider": "deepseek",
+    "token_env": "ANTHROPIC_AUTH_TOKEN"
+  },
   "panel": {
     "git": {
       "show_git": true,

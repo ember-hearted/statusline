@@ -338,15 +338,15 @@ if [ -n "$transcript_path" ] && [ -f "$transcript_path" ] && command -v node >/d
     fi
 fi
 
-# ========== DeepSeek 余额查询 ==========
+# ========== 余额查询 ==========
 balance_display=""
-# 查找余额查询脚本
-if [ -f "${SCRIPT_DIR_STATUSLINE}/deepseek-balance.sh" ]; then
-    balance_script="${SCRIPT_DIR_STATUSLINE}/deepseek-balance.sh"
-elif [ -f "${SCRIPT_DIR_STATUSLINE}/../bin/deepseek-balance.sh" ]; then
-    balance_script="${SCRIPT_DIR_STATUSLINE}/../bin/deepseek-balance.sh"
-elif [ -f "${CONFIG_DIR}/deepseek-balance.sh" ]; then
-    balance_script="${CONFIG_DIR}/deepseek-balance.sh"
+# 查找 query-balance.sh 调度器
+if [ -f "${SCRIPT_DIR_STATUSLINE}/query-balance.sh" ]; then
+    balance_script="${SCRIPT_DIR_STATUSLINE}/query-balance.sh"
+elif [ -f "${SCRIPT_DIR_STATUSLINE}/../bin/query-balance.sh" ]; then
+    balance_script="${SCRIPT_DIR_STATUSLINE}/../bin/query-balance.sh"
+elif [ -f "${CONFIG_DIR}/query-balance.sh" ]; then
+    balance_script="${CONFIG_DIR}/query-balance.sh"
 fi
 
 if [ -n "$balance_script" ] && [ -f "$balance_script" ]; then
