@@ -338,6 +338,24 @@ if [ -n "$transcript_path" ] && [ -f "$transcript_path" ] && command -v node >/d
     fi
 fi
 
+# ========== DeepSeek 余额查询 ==========
+balance_display=""
+# 查找余额查询脚本
+if [ -f "${SCRIPT_DIR_STATUSLINE}/deepseek-balance.sh" ]; then
+    balance_script="${SCRIPT_DIR_STATUSLINE}/deepseek-balance.sh"
+elif [ -f "${SCRIPT_DIR_STATUSLINE}/../bin/deepseek-balance.sh" ]; then
+    balance_script="${SCRIPT_DIR_STATUSLINE}/../bin/deepseek-balance.sh"
+elif [ -f "${CONFIG_DIR}/deepseek-balance.sh" ]; then
+    balance_script="${CONFIG_DIR}/deepseek-balance.sh"
+fi
+
+if [ -n "$balance_script" ] && [ -f "$balance_script" ]; then
+    balance_result=$(bash "$balance_script" 2>/dev/null || true)
+    if [ -n "$balance_result" ]; then
+        balance_display="${c_gray}[${reset_color}${c_yellow}${balance_result}${reset_color}${c_gray}]${reset_color}"
+    fi
+fi
+
 # ========== 输出生成 ==========
 # 下标数字映射
 subscript_digits() {
@@ -348,8 +366,8 @@ used_pct_sub=$(subscript_digits "$used_pct")
 # 进度条显示
 progress_display="${bar_color}❦ ${progress_bar}${used_pct_sub}${reset_color}"
 
-# 第一行: 进度条 · 路径 · 分支 · 时间
-statusline="${progress_display} ${sep} ${dir_display}${branch_display}${time_display}"
+# 第一行: 进度条 · 余额 · 路径 · 分支 · 时间
+statusline="${progress_display}${balance_display} ${sep} ${dir_display}${branch_display}${time_display}"
 
 # 主状态行前缀
 main_prefix=""

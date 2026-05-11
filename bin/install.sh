@@ -113,6 +113,15 @@ copy_files() {
     cp "$SCRIPT_DIR/statusline.sh" "$install_dir/"
     chmod +x "$install_dir/statusline.sh"
 
+    # 复制余额查询脚本
+    if [ -f "$SCRIPT_DIR/deepseek-balance.sh" ]; then
+        cp "$SCRIPT_DIR/deepseek-balance.sh" "$install_dir/"
+        chmod +x "$install_dir/deepseek-balance.sh"
+    elif [ -f "$PROJECT_ROOT/bin/deepseek-balance.sh" ]; then
+        cp "$PROJECT_ROOT/bin/deepseek-balance.sh" "$install_dir/"
+        chmod +x "$install_dir/deepseek-balance.sh"
+    fi
+
     # 复制配置文件
     cp "$PROJECT_ROOT/config/config.json" "$install_dir/"
 
