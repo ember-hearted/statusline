@@ -9,7 +9,8 @@
   },
   "balance": {
     "provider": "deepseek",
-    "token_env": "ANTHROPIC_AUTH_TOKEN"
+    "token_env": "ANTHROPIC_AUTH_TOKEN",
+    "api_url": "https://api.deepseek.com/user/balance"
   },
   "panel": {
     "git": {

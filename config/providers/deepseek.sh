@@ -1,6 +1,6 @@
 #!/bin/bash
 # DeepSeek 余额查询 Provider
-# 接口: $1 = API token, 输出格式化余额字符串, 退出码 0=成功
+# 接口: $1 = API token, $2 = api_url (可选), 输出格式化余额字符串, 退出码 0=成功
 # API 文档: https://api-docs.deepseek.com/zh-cn/api/get-user-balance
 
 set -e
@@ -24,7 +24,9 @@ if [ -f "$CACHE_FILE" ]; then
     fi
 fi
 
-RESPONSE=$(curl -s --max-time 5 "https://api.deepseek.com/user/balance" \
+API_URL="${2:-https://api.deepseek.com/user/balance}"
+
+RESPONSE=$(curl -s --max-time 5 "$API_URL" \
     -H "Authorization: Bearer ${TOKEN}" \
     -H "Content-Type: application/json" 2>/dev/null || true)
 

@@ -16,6 +16,7 @@
   - 🟢 绿色 (< 55%)
   - 🟡 黄色 (55% ~ 75%)
   - 🔴 红色 (> 75%)
+- **LLM 余额查询**：可配置的 provider 模式，支持 DeepSeek 等厂商余额显示
 - **实时活动显示**：显示进行中的 Tools、Agents、Todos 数量
 - **Git 状态集成**：显示分支名和文件变动统计
 - **跨平台**：Windows (Git Bash/WSL)、macOS、Linux
@@ -116,6 +117,11 @@ chmod +x ~/.claude/statusline/statusline.sh
     },
     "branch": "33"
   },
+  "balance": {
+    "provider": "deepseek",
+    "token_env": "ANTHROPIC_AUTH_TOKEN",
+    "api_url": "https://api.deepseek.com/user/balance"
+  },
   "panel": {
     "git": {
       "show_git": true,
@@ -139,6 +145,14 @@ chmod +x ~/.claude/statusline/statusline.sh
 | `colors.thresholds.yellow` | 黄色阈值（百分比） | 75 |
 | `colors.branch` | 分支名颜色代码 | 33（橙色） |
 
+**balance 分组** - 余额查询配置：
+
+| 配置项 | 说明 | 默认值 |
+|--------|------|--------|
+| `balance.provider` | Provider 名称（对应 `providers/<name>.sh`） | deepseek |
+| `balance.token_env` | API token 对应的环境变量名 | ANTHROPIC_AUTH_TOKEN |
+| `balance.api_url` | 余额查询 API 地址 | https://api.deepseek.com/user/balance |
+
 **panel 分组** - 面板显示选项：
 
 | 配置项 | 说明 | 默认值 |
@@ -156,7 +170,7 @@ chmod +x ~/.claude/statusline/statusline.sh
 
 ```
 # 主状态行
-❦ •■■■■■□□□□₅₆ ▸ claude-space/statusline ▸  test ~2 -1 ▸ 05:42
+❦ •■■■■■□□□□₅₆[¥98.66] ▸ claude-space/statusline ▸  test ~2 -1 ▸ 05:42
 
 # 有活动时的附加行
   ❦ Tools  3 running
@@ -171,6 +185,7 @@ chmod +x ~/.claude/statusline/statusline.sh
 - `■■■■■` - 已使用的 Context（绿色/黄色/红色）
 - `□□□□` - 未使用的 Context
 - `₅₆` - 使用百分比（下标数字）
+- `[¥98.66]` - LLM 余额（括号内黄色显示）
 - `▸` - 分隔符
 - `claude-space/statusline` - 两级目录名（青色）
 - ` test` - Git 分支（橙色）
@@ -188,13 +203,18 @@ chmod +x ~/.claude/statusline/statusline.sh
 ~/.claude/statusline/
 ├── config.json              # 配置文件
 ├── statusline.sh            # 主脚本
+├── query-balance.sh         # 余额查询调度器
+├── providers/               # Provider 脚本目录
+│   └── deepseek.sh          # DeepSeek 余额查询
 └── transcript-parser-lite.js # Transcript 解析器
 ```
 
 | 文件 | 说明 |
 |------|------|
 | `statusline.sh` | 主脚本：解析输入、生成状态栏输出 |
-| `config.json` | 配置文件：颜色阈值、显示选项 |
+| `config.json` | 配置文件：颜色阈值、显示选项、余额 provider |
+| `query-balance.sh` | 余额调度器：读取配置并调用对应 provider |
+| `providers/` | Provider 脚本目录，每个 `.sh` 封装一个厂商的余额查询 |
 | `transcript-parser-lite.js` | Transcript 解析器：提取 Tools/Agents/Todos 状态 |
 | `install.sh` | 安装脚本：部署到 `~/.claude/statusline/` |
 

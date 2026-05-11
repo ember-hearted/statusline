@@ -1,7 +1,7 @@
 #!/bin/bash
 # 余额查询调度器
 # 根据 config.json 中的 balance 配置，查找并调用对应 provider
-# Provider 约定: 接收 API token 为 $1，输出格式化余额，退出码 0=成功
+# Provider 约定: $1 = API token, $2 = api_url (可选), 输出格式化余额, 退出码 0=成功
 
 set -e
 
@@ -33,6 +33,12 @@ if [ -f "$CONFIG_FILE" ]; then
 fi
 [ -z "$TOKEN_ENV" ] && exit 0
 
+# 读取 balance.api_url（可选，provider 有内置默认值）
+API_URL=""
+if [ -f "$CONFIG_FILE" ]; then
+    API_URL=$(grep -o '"api_url"[[:space:]]*:[[:space:]]*"[^"]*"' "$CONFIG_FILE" | head -1 | sed 's/.*:[[:space:]]*"//;s/"$//')
+fi
+
 # 获取 token: 优先环境变量，其次 settings.json
 TOKEN=""
 eval TOKEN="\$$TOKEN_ENV" 2>/dev/null || true
@@ -55,4 +61,4 @@ if [ -z "$PROVIDER_SCRIPT" ] || [ ! -f "$PROVIDER_SCRIPT" ]; then
     exit 0
 fi
 
-bash "$PROVIDER_SCRIPT" "$TOKEN"
+bash "$PROVIDER_SCRIPT" "$TOKEN" "$API_URL"
