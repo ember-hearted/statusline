@@ -186,6 +186,7 @@ c_white="\033[37m"         # 白色
 c_dim="\033[2m"             # 暗淡
 c_yellow="\033[33m"         # 黄色
 c_green="\033[32m"         # 绿色
+c_red="\033[31m"           # 红色
 reset_color="\033[0m"
 
 # ========== JSON 解析函数（必须在调用前定义） ==========
@@ -352,7 +353,14 @@ fi
 if [ -n "$balance_script" ] && [ -f "$balance_script" ]; then
     balance_result=$(bash "$balance_script" 2>/dev/null || true)
     if [ -n "$balance_result" ]; then
-        balance_display="${c_gray}[${reset_color}${c_yellow}${balance_result}${reset_color}${c_gray}]${reset_color}"
+        # 提取数值判断颜色：< 5 红色，否则黄色
+        balance_value=$(echo "$balance_result" | sed 's/[^0-9.]//g')
+        if [ -n "$balance_value" ] && awk "BEGIN {exit !($balance_value < 5)}" 2>/dev/null; then
+            balance_color="$c_red"
+        else
+            balance_color="$c_yellow"
+        fi
+        balance_display="${c_gray}[${reset_color}${balance_color}${balance_result}${reset_color}${c_gray}]${reset_color}"
     fi
 fi
 
