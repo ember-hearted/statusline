@@ -191,10 +191,10 @@ chmod +x ~/.claude/statusline/statusline.sh
 
 ```
 # 主状态行（DeepSeek）
-❦ •■■■■■□□□□₅₆[¥98.66] ▸ claude-space/statusline ▸  test ~2 -1 ▸ 05:42
+❦ •■■■■■□□□□₅₆[¥98.66] ↯ claude-space/statusline ▸  test ~2 -1 ▸ 05:42
 
 # 主状态行（Kimi）
-❦ •■■■■■□□□□₅₆[Kimi 69%/10%] ▸ claude-space/statusline ▸  test ~2 -1 ▸ 05:42
+❦ •■■■■■□□□□₅₆[Kimi 69%/10%] ↯ claude-space/statusline ▸  test ~2 -1 ▸ 05:42
 
 # 有活动时的附加行
   ❦ Tools  3 running
@@ -211,7 +211,8 @@ chmod +x ~/.claude/statusline/statusline.sh
 - `₅₆` - 使用百分比（下标数字）
 - `[¥98.66]` - DeepSeek 余额（括号内着色）
 - `[Kimi 69%/10%]` - Kimi Coding Plan 用量（5h使用率/周度使用率，各自着色）
-- `▸` - 分隔符
+- `↯` - 余额与路径之间的分隔符
+- `▸` - 路径、分支、时间之间的分隔符
 - `claude-space/statusline` - 两级目录名（青色）
 - ` test` - Git 分支（橙色）
 - `~2 -1` - 文件变动统计（修改2个，删除1个）
