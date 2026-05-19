@@ -353,14 +353,7 @@ fi
 if [ -n "$balance_script" ] && [ -f "$balance_script" ]; then
     balance_result=$(bash "$balance_script" 2>/dev/null || true)
     if [ -n "$balance_result" ]; then
-        # 提取数值判断颜色：< 5 红色，否则黄色
-        balance_value=$(echo "$balance_result" | sed 's/[^0-9.]//g')
-        if [ -n "$balance_value" ] && awk "BEGIN {exit !($balance_value < 5)}" 2>/dev/null; then
-            balance_color="$c_red"
-        else
-            balance_color="$c_yellow"
-        fi
-        balance_display="${c_gray}[${reset_color}${balance_color}${balance_result}${reset_color}${c_gray}]${reset_color}"
+        balance_display="${c_gray}[${reset_color}${balance_result}${c_gray}]${reset_color}"
     fi
 fi
 
@@ -375,7 +368,7 @@ used_pct_sub=$(subscript_digits "$used_pct")
 progress_display="${bar_color}❦ ${progress_bar}${used_pct_sub}${reset_color}"
 
 # 第一行: 进度条 · 余额 · 路径 · 分支 · 时间
-statusline="${progress_display}${balance_display} ${sep} ${dir_display}${branch_display}${time_display}"
+statusline="${progress_display}${balance_display} ${c_gray}↯${reset_color} ${dir_display}${branch_display}${time_display}"
 
 # 主状态行前缀
 main_prefix=""

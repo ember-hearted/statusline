@@ -56,8 +56,16 @@ case "$CURRENCY" in
     *) CURRENCY_SYMBOL="$CURRENCY " ;;
 esac
 
-OUTPUT="${CURRENCY_SYMBOL}${TOTAL_BALANCE}"
+# 根据余额着色: < 5 红色, 否则黄色
+balance_num=$(echo "$TOTAL_BALANCE" | sed 's/[^0-9.]//g')
+if [ -n "$balance_num" ] && awk "BEGIN {exit !($balance_num < 5)}" 2>/dev/null; then
+    COLOR_CODE="\033[31m"  # 红色
+else
+    COLOR_CODE="\033[33m"  # 黄色
+fi
+
+OUTPUT="${COLOR_CODE}${CURRENCY_SYMBOL}${TOTAL_BALANCE}\033[0m"
 
 mkdir -p "$CACHE_DIR"
-echo "$OUTPUT" > "$CACHE_FILE"
-echo "$OUTPUT"
+printf '%b' "$OUTPUT" > "$CACHE_FILE"
+printf '%b' "$OUTPUT"

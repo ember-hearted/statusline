@@ -8,9 +8,14 @@
     "branch": "33"
   },
   "balance": {
-    "provider": "deepseek",
-    "token_env": "ANTHROPIC_AUTH_TOKEN",
-    "api_url": "https://api.deepseek.com/user/balance"
+    "deepseek": {
+      "token_env": "DEEPSEEK_API_KEY",
+      "api_url": "https://api.deepseek.com/user/balance"
+    },
+    "kimi": {
+      "token_env": "ANTHROPIC_API_KEY",
+      "api_url": "https://api.kimi.com/coding/v1/usages"
+    }
   },
   "panel": {
     "git": {

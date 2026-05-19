@@ -16,6 +16,8 @@ A cross-platform statusline script for Claude Code, featuring dynamic color prog
   - 🟢 Green (< 55%)
   - 🟡 Yellow (55% ~ 75%)
   - 🔴 Red (> 75%)
+- **LLM balance/usage query**: Configurable multi-provider mode supporting DeepSeek, Kimi, and more
+- **Smart switching**: Configure multiple providers, automatically display the first one with a valid token
 - **Real-time activity display**: Shows running Tools, Agents, and Todos count
 - **Git status integration**: Displays branch name and file change statistics
 - **Cross-platform**: Windows (Git Bash/WSL), macOS, Linux
@@ -116,6 +118,16 @@ Edit `~/.claude/statusline/config.json`:
     },
     "branch": "33"
   },
+  "balance": {
+    "deepseek": {
+      "token_env": "DEEPSEEK_API_KEY",
+      "api_url": "https://api.deepseek.com/user/balance"
+    },
+    "kimi": {
+      "token_env": "ANTHROPIC_API_KEY",
+      "api_url": "https://api.kimi.com/coding/v1/usages"
+    }
+  },
   "panel": {
     "git": {
       "show_git": true,
@@ -129,6 +141,8 @@ Edit `~/.claude/statusline/config.json`:
 }
 ```
 
+`balance` is an **object format** where keys are provider names. The system automatically infers the current provider by reading `ANTHROPIC_BASE_URL` and looks up the matching configuration directly.
+
 ### Configuration Options
 
 **colors group** - Color-related settings:
@@ -138,6 +152,27 @@ Edit `~/.claude/statusline/config.json`:
 | `colors.thresholds.green` | Green threshold (percentage) | 55 |
 | `colors.thresholds.yellow` | Yellow threshold (percentage) | 75 |
 | `colors.branch` | Branch name color code | 33 (orange) |
+
+**balance group** - Balance/usage query configuration:
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `balance.<name>.token_env` | Environment variable name for API token | See provider docs |
+| `balance.<name>.api_url` | Balance query API endpoint | See provider docs |
+
+**Token configuration**: Set tokens and base URL in `env` within `~/.claude/settings.json`:
+
+```json
+{
+  "env": {
+    "ANTHROPIC_BASE_URL": "https://api.kimi.com/coding/",
+    "ANTHROPIC_API_KEY": "eyJ...",
+    "DEEPSEEK_API_KEY": "sk-..."
+  }
+}
+```
+
+The system automatically reads `ANTHROPIC_BASE_URL`, extracts the provider identifier from the domain (e.g. `api.kimi.com` → `kimi`), and directly hits the matching `balance.kimi` config. If `ANTHROPIC_BASE_URL` is not set or doesn't match, it falls back to the first key in the `balance` object.
 
 **panel group** - Panel display options:
 
@@ -155,8 +190,11 @@ Edit `~/.claude/statusline/config.json`:
 ## Display Preview
 
 ```
-# Main status line
-❦ •■■■■■□□□□₅₆ ▸ claude-space/statusline ▸  test ~2 -1 ▸ 05:42
+# Main status line (DeepSeek)
+❦ •■■■■■□□□□₅₆[¥98.66] ▸ claude-space/statusline ▸  test ~2 -1 ▸ 05:42
+
+# Main status line (Kimi)
+❦ •■■■■■□□□□₅₆[Kimi 69%/10%] ▸ claude-space/statusline ▸  test ~2 -1 ▸ 05:42
 
 # Activity lines (shown only when activities are running)
   ❦ Tools  3 running
@@ -171,6 +209,8 @@ Format description:
 - `■■■■■` - Used Context (green/yellow/red)
 - `□□□□` - Unused Context
 - `₅₆` - Usage percentage (subscript digits)
+- `[¥98.66]` - DeepSeek balance (colored inside brackets)
+- `[Kimi 69%/10%]` - Kimi Coding Plan usage (5h rate / weekly quota, each colored independently)
 - `▸` - Separator
 - `claude-space/statusline` - Two-level directory name (cyan)
 - ` test` - Git branch (orange)
@@ -188,15 +228,38 @@ Format description:
 ~/.claude/statusline/
 ├── config.json              # Configuration file
 ├── statusline.sh            # Main script
+├── query-balance.sh         # Balance query dispatcher
+├── providers/               # Provider scripts directory
+│   ├── deepseek.sh          # DeepSeek balance query
+│   └── kimi.sh              # Kimi Coding Plan usage query
 └── transcript-parser-lite.js # Transcript parser
 ```
 
 | File | Description |
 |------|-------------|
 | `statusline.sh` | Main script: parses input, generates statusline output |
-| `config.json` | Configuration: color thresholds, display options |
+| `config.json` | Configuration: color thresholds, display options, balance providers |
+| `query-balance.sh` | Balance dispatcher: reads config and calls provider (supports jq multi-provider parsing) |
+| `providers/` | Provider scripts directory, each `.sh` encapsulates a vendor's query logic and manages its own colors/format |
 | `transcript-parser-lite.js` | Transcript parser: extracts Tools/Agents/Todos status |
 | `install.sh` | Install script: deploys to `~/.claude/statusline/` |
+
+## Provider Documentation
+
+### DeepSeek
+
+- **Endpoint**: `GET https://api.deepseek.com/user/balance`
+- **Display**: `¥balance`
+- **Color**: Red if balance < ¥5, otherwise yellow
+
+### Kimi Coding Plan
+
+- **Endpoint**: `GET https://api.kimi.com/coding/v1/usages`
+- **Display**: `Kimi 5h_usage%/weekly_usage%`
+- **Color**: Each percentage is **independently colored**
+  - 5-hour window: >80% red, >50% yellow, otherwise green
+  - Weekly quota: >90% red, >70% yellow, otherwise green
+- **Token**: Uses `ANTHROPIC_API_KEY` (Kimi connects via OpenAI-compatible protocol)
 
 ## License
 
