@@ -36,26 +36,48 @@ fi
 [ -n "$PROVIDER_DIR" ] || exit 0
 
 # 从 settings.json 或环境变量读取值
+# 支持逗号分隔的多值（如 "ANTHROPIC_AUTH_TOKEN,DEEPSEEK_API_KEY"），使用第一个非空值
 resolve_value() {
-    local var_name="$1"
+    local var_names="$1"
     local value=""
-    eval value="\$$var_name" 2>/dev/null || true
-    if [ -z "$value" ] && [ -f "$SETTINGS_FILE" ]; then
-        # 优先用 node 解析（正确处理含引号的值），fallback 到 grep/sed
-        if command -v node >/dev/null 2>&1; then
+
+    local saved_ifs="$IFS"
+    IFS=','
+    for var_name in $var_names; do
+        IFS="$saved_ifs"
+        [ -z "$var_name" ] && continue
+        # 去除首尾空格
+        var_name="${var_name#"${var_name%%[![:space:]]*}"}"
+        var_name="${var_name%"${var_name##*[![:space:]]}"}"
+        [ -z "$var_name" ] && continue
+
+        # 1. 环境变量
+        eval value="\$$var_name" 2>/dev/null || true
+        [ -n "$value" ] && break
+
+        # 2. settings.json (via node, 兼容 env 子对象)
+        if [ -f "$SETTINGS_FILE" ] && command -v node >/dev/null 2>&1; then
             value=$(node -e "
                 const fs = require('fs');
                 const s = JSON.parse(fs.readFileSync(process.argv[1], 'utf8'));
                 const keys = process.argv[2].split('.');
-                let v = s;
-                for (const k of keys) { v = v?.[k]; }
-                if (v != null) process.stdout.write(String(v));
+                for (const root of [s, s.env]) {
+                    if (!root) continue;
+                    let v = root;
+                    for (const k of keys) { v = v?.[k]; }
+                    if (v != null) { process.stdout.write(String(v)); break; }
+                }
             " "$SETTINGS_FILE" "$var_name" 2>/dev/null || true)
         fi
-        if [ -z "$value" ]; then
+        [ -n "$value" ] && break
+
+        # 3. grep 全文兜底
+        if [ -f "$SETTINGS_FILE" ]; then
             value=$(grep -o "\"${var_name}\"[[:space:]]*:[[:space:]]*\"[^\"]*\"" "$SETTINGS_FILE" 2>/dev/null | head -1 | sed 's/.*:[[:space:]]*"//;s/"$//')
         fi
-    fi
+        [ -n "$value" ] && break
+    done
+    IFS="$saved_ifs"
     echo "$value"
 }
 
