@@ -41,7 +41,20 @@ resolve_value() {
     local value=""
     eval value="\$$var_name" 2>/dev/null || true
     if [ -z "$value" ] && [ -f "$SETTINGS_FILE" ]; then
-        value=$(grep -o "\"${var_name}\"[[:space:]]*:[[:space:]]*\"[^\"]*\"" "$SETTINGS_FILE" 2>/dev/null | head -1 | sed 's/.*:[[:space:]]*"//;s/"$//')
+        # 优先用 node 解析（正确处理含引号的值），fallback 到 grep/sed
+        if command -v node >/dev/null 2>&1; then
+            value=$(node -e "
+                const fs = require('fs');
+                const s = JSON.parse(fs.readFileSync(process.argv[1], 'utf8'));
+                const keys = process.argv[2].split('.');
+                let v = s;
+                for (const k of keys) { v = v?.[k]; }
+                if (v != null) process.stdout.write(String(v));
+            " "$SETTINGS_FILE" "$var_name" 2>/dev/null || true)
+        fi
+        if [ -z "$value" ]; then
+            value=$(grep -o "\"${var_name}\"[[:space:]]*:[[:space:]]*\"[^\"]*\"" "$SETTINGS_FILE" 2>/dev/null | head -1 | sed 's/.*:[[:space:]]*"//;s/"$//')
+        fi
     fi
     echo "$value"
 }
@@ -56,15 +69,23 @@ resolve_value() {
 # https://api.together.xyz/v1/     → together
 extract_provider_hint() {
     local url="$1"
-    # 去掉协议前缀
     local no_proto="${url#https://}"
     no_proto="${no_proto#http://}"
-    # 提取域名部分（第一个 / 之前）
     local domain="${no_proto%%/*}"
-    # 提取标识：去掉 api. 前缀，再去掉 .com/.cn/.xyz 等后缀
+    # 去掉常见 TLD 后缀
     local hint="$domain"
-    hint="${hint#api.}"
-    hint="${hint%%.*}"
+    hint="${hint%.com}"
+    hint="${hint%.cn}"
+    hint="${hint%.xyz}"
+    hint="${hint%.io}"
+    hint="${hint%.dev}"
+    hint="${hint%.net}"
+    # 去掉第一个子域名前缀（如 api.、token-plan-cn.）
+    if [[ "$hint" == *.* ]]; then
+        hint="${hint#*.}"
+    fi
+    # 取最后一段
+    hint="${hint##*.}"
     echo "$hint"
 }
 

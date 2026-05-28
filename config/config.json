@@ -15,6 +15,10 @@
     "kimi": {
       "token_env": "ANTHROPIC_API_KEY",
       "api_url": "https://api.kimi.com/coding/v1/usages"
+    },
+    "xiaomimimo": {
+      "token_env": "XIAOMIMIMO_COOKIE",
+      "api_url": "https://platform.xiaomimimo.com/api/v1/tokenPlan/usage"
     }
   },
   "panel": {
