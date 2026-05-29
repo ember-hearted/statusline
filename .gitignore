@@ -11,6 +11,9 @@ plans/
 # 技能锁定文件
 skills-lock.json
 
+# Firecrawl 缓存
+.firecrawl/
+
 # 旧版/测试文件
 transcript-parser.js
 test-transcript.jsonl
