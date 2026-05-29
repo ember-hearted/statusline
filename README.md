@@ -16,7 +16,7 @@
   - 🟢 绿色 (< 55%)
   - 🟡 黄色 (55% ~ 75%)
   - 🔴 红色 (> 75%)
-- **LLM 余额查询**：可配置的多 provider 模式，支持 DeepSeek、Kimi 等厂商余额/用量显示
+- **LLM 余额查询**：可配置的多 provider 模式，支持 DeepSeek、Kimi、Xiaomi MiMo 等厂商余额/用量显示
 - **智能切换**：配置多个 provider，自动显示当前生效（token 有效）的那一个
 - **实时活动显示**：显示进行中的 Tools、Agents、Todos 数量
 - **Git 状态集成**：显示分支名和文件变动统计
@@ -85,8 +85,13 @@ mkdir -p ~/.claude/statusline
 
 # 3. 复制文件
 cp bin/statusline.sh ~/.claude/statusline/
+cp bin/query-balance.sh ~/.claude/statusline/
 cp config/config.json ~/.claude/statusline/
+cp config/providers/*.sh ~/.claude/statusline/providers/
 cp scripts/transcript-parser-lite.js ~/.claude/statusline/
+mkdir -p ~/.claude/statusline/scripts
+cp scripts/refresh-xiaomimimo-cookie.js ~/.claude/statusline/scripts/
+cp scripts/refresh-xiaomimimo-cookie.sh ~/.claude/statusline/scripts/
 
 # 4. 添加执行权限
 chmod +x ~/.claude/statusline/statusline.sh
@@ -126,6 +131,9 @@ chmod +x ~/.claude/statusline/statusline.sh
     "kimi": {
       "token_env": "ANTHROPIC_API_KEY",
       "api_url": "https://api.kimi.com/coding/v1/usages"
+    },
+    "xiaomimimo": {
+      "api_url": "https://platform.xiaomimimo.com/api/v1/tokenPlan/usage"
     }
   },
   "panel": {
@@ -196,6 +204,10 @@ chmod +x ~/.claude/statusline/statusline.sh
 # 主状态行（Kimi）
 ❦ •■■■■■□□□□₅₆[Kimi 69%/10%] ↯ claude-space/statusline ▸  test ~2 -1 ▸ 05:42
 
+
+# 主状态行（Xiaomi MiMo）
+❦ •■■■■■□□□□₅₆[Mimo 74%(30.3亿/41.0亿)] ↯ claude-space/statusline ▸  test ~2 -1 ▸ 05:42
+
 # 有活动时的附加行
   ❦ Tools  3 running
   ❦ Agents 2 running
@@ -211,6 +223,7 @@ chmod +x ~/.claude/statusline/statusline.sh
 - `₅₆` - 使用百分比（下标数字）
 - `[¥98.66]` - DeepSeek 余额（括号内着色）
 - `[Kimi 69%/10%]` - Kimi Coding Plan 用量（5h使用率/周度使用率，各自着色）
+- `[Mimo 74%(30.3亿/41.0亿)]` - Xiaomi MiMo Token Plan 用量（百分比着色）
 - `↯` - 余额与路径之间的分隔符
 - `▸` - 路径、分支、时间之间的分隔符
 - `claude-space/statusline` - 两级目录名（青色）
@@ -232,7 +245,14 @@ chmod +x ~/.claude/statusline/statusline.sh
 ├── query-balance.sh         # 余额查询调度器
 ├── providers/               # Provider 脚本目录
 │   ├── deepseek.sh          # DeepSeek 余额查询
-│   └── kimi.sh              # Kimi Coding Plan 用量查询
+│   ├── kimi.sh              # Kimi Coding Plan 用量查询
+│   └── xiaomimimo.sh        # Xiaomi MiMo Token Plan 用量查询
+├── scripts/                 # 辅助脚本目录
+│   ├── refresh-xiaomimimo-cookie.js   # MiMo cookie 自动刷新（Playwright）
+│   └── refresh-xiaomimimo-cookie.sh   # MiMo cookie 刷新入口脚本
+├── cache/                   # 运行时缓存（自动生成）
+│   ├── xiaomimimo_cookie.txt          # MiMo 认证 cookie
+│   └── balance_*.txt                  # 各 provider 余额缓存
 └── transcript-parser-lite.js # Transcript 解析器
 ```
 
@@ -242,6 +262,7 @@ chmod +x ~/.claude/statusline/statusline.sh
 | `config.json` | 配置文件：颜色阈值、显示选项、余额 provider |
 | `query-balance.sh` | 余额调度器：读取配置并调用对应 provider（支持 jq 多 provider 解析） |
 | `providers/` | Provider 脚本目录，每个 `.sh` 封装一个厂商的查询逻辑，自行管理颜色和格式 |
+| `scripts/` | 辅助脚本目录，包含 MiMo cookie 自动刷新等工具 |
 | `transcript-parser-lite.js` | Transcript 解析器：提取 Tools/Agents/Todos 状态 |
 | `install.sh` | 安装脚本：部署到 `~/.claude/statusline/` |
 
@@ -261,6 +282,33 @@ chmod +x ~/.claude/statusline/statusline.sh
   - 5小时窗口：>80% 红，>50% 黄，否则绿
   - 周度配额：>90% 红，>70% 黄，否则绿
 - **Token**：使用 `ANTHROPIC_API_KEY`（因为 Kimi 通过 OpenAI 兼容协议接入）
+
+### Xiaomi MiMo Token Plan
+
+- **接口**：`GET https://platform.xiaomimimo.com/api/v1/tokenPlan/usage`
+- **认证**：Cookie（`api-platform_serviceToken`），**非 API Key**
+- **显示**：`Mimo 百分比(已用/总量)`
+- **颜色**：>90% 红，>70% 黄，否则绿
+- **依赖**：Node.js + Playwright（安装脚本自动处理，手动安装需运行 `cd ~/.claude/statusline/scripts && npm install playwright && npx playwright install chromium`）
+- **Cookie 获取**：小米未提供 API Key 查询用量的接口，需通过浏览器登录获取 cookie
+  ```bash
+  # 首次运行：打开浏览器手动登录小米账号
+  ~/.claude/statusline/scripts/refresh-xiaomimimo-cookie.sh
+
+  # 后续运行：复用登录态自动刷新（无头模式）
+  ~/.claude/statusline/scripts/refresh-xiaomimimo-cookie.sh --quiet
+  ```
+- **Cookie 有效期**：约 1 天，过期后脚本会自动尝试刷新并提示
+- **定时刷新建议**：配合 cron 每 12 小时刷新一次
+  ```bash
+  0 */12 * * * ~/.claude/statusline/scripts/refresh-xiaomimimo-cookie.sh --quiet
+  ```
+- **config.json 配置**：无需 `token_env`，脚本从 `~/.claude/statusline/cache/xiaomimimo_cookie.txt` 读取
+  ```json
+  "xiaomimimo": {
+    "api_url": "https://platform.xiaomimimo.com/api/v1/tokenPlan/usage"
+  }
+  ```
 
 ## 许可证
 

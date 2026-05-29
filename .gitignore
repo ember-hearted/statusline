@@ -2,8 +2,9 @@
 statusline_debug.sh
 test_input.sh
 
-# Claude 自动生成
-.claude/
+# Claude 自动生成（保留 settings.json 用于共享 hooks 配置）
+.claude/*
+!.claude/settings.json
 .agents/
 plans/
 

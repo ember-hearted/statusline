@@ -138,13 +138,13 @@ if command -v jq >/dev/null 2>&1; then
         token_env=$(jq -r --arg k "$provider_name" '.balance[$k].token_env // empty' "$CONFIG_FILE")
         api_url=$(jq -r --arg k "$provider_name" '.balance[$k].api_url // empty' "$CONFIG_FILE")
 
-        if [ -z "$token_env" ]; then
-            exit 0
-        fi
-
-        token=$(resolve_value "$token_env")
-        if [ -z "$token" ]; then
-            exit 0
+        # token_env 为空时仍继续调用（provider 可从文件等其他来源获取凭证）
+        token=""
+        if [ -n "$token_env" ]; then
+            token=$(resolve_value "$token_env")
+            if [ -z "$token" ]; then
+                exit 0
+            fi
         fi
 
         provider_script="${PROVIDER_DIR}/${provider_name}.sh"
@@ -161,12 +161,14 @@ else
     [ -z "$first_key" ] && exit 0
 
     token_env=$(grep -o '"token_env"[[:space:]]*:[[:space:]]*"[^"]*"' "$CONFIG_FILE" | head -1 | sed 's/.*:[[:space:]]*"//;s/"$//')
-    [ -z "$token_env" ] && exit 0
 
     api_url=$(grep -o '"api_url"[[:space:]]*:[[:space:]]*"[^"]*"' "$CONFIG_FILE" | head -1 | sed 's/.*:[[:space:]]*"//;s/"$//' || true)
 
-    token=$(resolve_value "$token_env")
-    [ -z "$token" ] && exit 0
+    token=""
+    if [ -n "$token_env" ]; then
+        token=$(resolve_value "$token_env")
+        [ -z "$token" ] && exit 0
+    fi
 
     provider_script="${PROVIDER_DIR}/${first_key}.sh"
     [ -f "$provider_script" ] || exit 0

@@ -100,6 +100,7 @@ create_install_dir() {
     fi
 
     mkdir -p "$install_dir/providers"
+    mkdir -p "$install_dir/scripts"
     print_success "安装目录创建成功"
 }
 
@@ -136,7 +137,46 @@ copy_files() {
         cp "$PROJECT_ROOT/scripts/transcript-parser-lite.js" "$install_dir/"
     fi
 
+    # 复制 MiMo cookie 刷新脚本
+    if [ -f "$PROJECT_ROOT/scripts/refresh-xiaomimimo-cookie.js" ]; then
+        cp "$PROJECT_ROOT/scripts/refresh-xiaomimimo-cookie.js" "$install_dir/scripts/"
+    fi
+    if [ -f "$PROJECT_ROOT/scripts/refresh-xiaomimimo-cookie.sh" ]; then
+        cp "$PROJECT_ROOT/scripts/refresh-xiaomimimo-cookie.sh" "$install_dir/scripts/"
+        chmod +x "$install_dir/scripts/refresh-xiaomimimo-cookie.sh"
+    fi
+
     print_success "文件复制完成"
+}
+
+# 安装 MiMo cookie 刷新脚本的依赖
+install_mimo_deps() {
+    local install_dir="$1"
+    local scripts_dir="$install_dir/scripts"
+
+    if [ ! -f "$scripts_dir/refresh-xiaomimimo-cookie.js" ]; then
+        return 0
+    fi
+
+    # 检查 node
+    if ! command -v node &> /dev/null; then
+        print_warning "未检测到 Node.js，MiMo cookie 自动刷新功能不可用"
+        print_warning "安装 Node.js 后运行: cd $scripts_dir && npm install playwright && npx playwright install chromium"
+        return 0
+    fi
+
+    print_info "安装 MiMo cookie 刷新依赖..."
+
+    # 初始化 package.json 并安装 playwright
+    cd "$scripts_dir"
+    if [ ! -f "package.json" ]; then
+        npm init -y > /dev/null 2>&1
+    fi
+    npm install playwright 2>&1 | tail -1
+    npx playwright install chromium 2>&1 | tail -1
+
+    cd "$PROJECT_ROOT"
+    print_success "MiMo cookie 刷新依赖安装完成"
 }
 
 # 配置 Claude Code settings.json
@@ -375,6 +415,7 @@ main() {
             check_dependencies
             create_install_dir "$install_dir"
             copy_files "$install_dir"
+            install_mimo_deps "$install_dir"
             configure_claude "$install_dir"
             verify_installation "$install_dir"
 

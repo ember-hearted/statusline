@@ -16,7 +16,7 @@ A cross-platform statusline script for Claude Code, featuring dynamic color prog
   - 🟢 Green (< 55%)
   - 🟡 Yellow (55% ~ 75%)
   - 🔴 Red (> 75%)
-- **LLM balance/usage query**: Configurable multi-provider mode supporting DeepSeek, Kimi, and more
+- **LLM balance/usage query**: Configurable multi-provider mode supporting DeepSeek, Kimi, Xiaomi MiMo, and more
 - **Smart switching**: Configure multiple providers, automatically display the first one with a valid token
 - **Real-time activity display**: Shows running Tools, Agents, and Todos count
 - **Git status integration**: Displays branch name and file change statistics
@@ -85,8 +85,13 @@ mkdir -p ~/.claude/statusline
 
 # 3. Copy files
 cp bin/statusline.sh ~/.claude/statusline/
+cp bin/query-balance.sh ~/.claude/statusline/
 cp config/config.json ~/.claude/statusline/
+cp config/providers/*.sh ~/.claude/statusline/providers/
 cp scripts/transcript-parser-lite.js ~/.claude/statusline/
+mkdir -p ~/.claude/statusline/scripts
+cp scripts/refresh-xiaomimimo-cookie.js ~/.claude/statusline/scripts/
+cp scripts/refresh-xiaomimimo-cookie.sh ~/.claude/statusline/scripts/
 
 # 4. Add execute permission
 chmod +x ~/.claude/statusline/statusline.sh
@@ -126,6 +131,9 @@ Edit `~/.claude/statusline/config.json`:
     "kimi": {
       "token_env": "ANTHROPIC_API_KEY",
       "api_url": "https://api.kimi.com/coding/v1/usages"
+    },
+    "xiaomimimo": {
+      "api_url": "https://platform.xiaomimimo.com/api/v1/tokenPlan/usage"
     }
   },
   "panel": {
@@ -232,7 +240,14 @@ Format description:
 ├── query-balance.sh         # Balance query dispatcher
 ├── providers/               # Provider scripts directory
 │   ├── deepseek.sh          # DeepSeek balance query
-│   └── kimi.sh              # Kimi Coding Plan usage query
+│   ├── kimi.sh              # Kimi Coding Plan usage query
+│   └── xiaomimimo.sh        # Xiaomi MiMo Token Plan usage query
+├── scripts/                 # Helper scripts directory
+│   ├── refresh-xiaomimimo-cookie.js   # MiMo cookie auto-refresh (Playwright)
+│   └── refresh-xiaomimimo-cookie.sh   # MiMo cookie refresh entry script
+├── cache/                   # Runtime cache (auto-generated)
+│   ├── xiaomimimo_cookie.txt          # MiMo auth cookie
+│   └── balance_*.txt                  # Provider balance cache
 └── transcript-parser-lite.js # Transcript parser
 ```
 
@@ -242,6 +257,7 @@ Format description:
 | `config.json` | Configuration: color thresholds, display options, balance providers |
 | `query-balance.sh` | Balance dispatcher: reads config and calls provider (supports jq multi-provider parsing) |
 | `providers/` | Provider scripts directory, each `.sh` encapsulates a vendor's query logic and manages its own colors/format |
+| `scripts/` | Helper scripts, including MiMo cookie auto-refresh tools |
 | `transcript-parser-lite.js` | Transcript parser: extracts Tools/Agents/Todos status |
 | `install.sh` | Install script: deploys to `~/.claude/statusline/` |
 
@@ -261,6 +277,33 @@ Format description:
   - 5-hour window: >80% red, >50% yellow, otherwise green
   - Weekly quota: >90% red, >70% yellow, otherwise green
 - **Token**: Uses `ANTHROPIC_API_KEY` (Kimi connects via OpenAI-compatible protocol)
+
+### Xiaomi MiMo Token Plan
+
+- **Endpoint**: `GET https://platform.xiaomimimo.com/api/v1/tokenPlan/usage`
+- **Auth**: Cookie (`api-platform_serviceToken`), **not API Key**
+- **Display**: `Mimo percentage(used/total)`
+- **Color**: >90% red, >70% yellow, otherwise green
+- **Dependencies**: Node.js + Playwright (install script handles this automatically; for manual install run `cd ~/.claude/statusline/scripts && npm install playwright && npx playwright install chromium`)
+- **Cookie Setup**: Xiaomi doesn't provide an API Key endpoint for usage queries — cookie must be obtained via browser login
+  ```bash
+  # First run: opens browser for manual Xiaomi account login
+  ~/.claude/statusline/scripts/refresh-xiaomimimo-cookie.sh
+
+  # Subsequent runs: auto-refresh using saved session (headless)
+  ~/.claude/statusline/scripts/refresh-xiaomimimo-cookie.sh --quiet
+  ```
+- **Cookie Lifetime**: ~1 day, auto-refresh attempted on expiry with user hint
+- **Scheduled Refresh**: Recommended cron job to refresh every 12 hours
+  ```bash
+  0 */12 * * * ~/.claude/statusline/scripts/refresh-xiaomimimo-cookie.sh --quiet
+  ```
+- **config.json**: No `token_env` needed, script reads from `~/.claude/statusline/cache/xiaomimimo_cookie.txt`
+  ```json
+  "xiaomimimo": {
+    "api_url": "https://platform.xiaomimimo.com/api/v1/tokenPlan/usage"
+  }
+  ```
 
 ## License
 
