@@ -133,6 +133,17 @@ if command -v jq >/dev/null 2>&1; then
         provider_name=$(jq -r '(.balance | keys[0]) // empty' "$CONFIG_FILE" 2>/dev/null || echo "")
     fi
 
+    # 2b. SCNet sk-tp 检测：API key 以 sk-tp 开头时路由到 scnet-tp provider
+    if [ "$provider_name" = "scnet" ]; then
+        scnet_token_env=$(jq -r --arg k "scnet" '.balance[$k].token_env // empty' "$CONFIG_FILE" 2>/dev/null || echo "")
+        if [ -n "$scnet_token_env" ]; then
+            scnet_token=$(resolve_value "$scnet_token_env")
+            if [[ "$scnet_token" == sk-tp* ]]; then
+                provider_name="scnet-tp"
+            fi
+        fi
+    fi
+
     # 3. 获取配置并调用 provider
     if [ -n "$provider_name" ]; then
         token_env=$(jq -r --arg k "$provider_name" '.balance[$k].token_env // empty' "$CONFIG_FILE")

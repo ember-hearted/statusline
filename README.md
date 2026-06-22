@@ -16,7 +16,7 @@
   - 🟢 绿色 (< 55%)
   - 🟡 黄色 (55% ~ 75%)
   - 🔴 红色 (> 75%)
-- **LLM 余额查询**：可配置的多 provider 模式，支持 DeepSeek、Kimi、Xiaomi MiMo 等厂商余额/用量显示
+- **LLM 余额查询**：可配置的多 provider 模式，支持 DeepSeek、Kimi、Xiaomi MiMo、SCNet（API/TokenPlan 双模式自动路由）等厂商余额/用量显示
 - **智能切换**：配置多个 provider，自动显示当前生效（token 有效）的那一个
 - **实时活动显示**：显示进行中的 Tools、Agents、Todos 数量
 - **Git 状态集成**：显示分支名和文件变动统计
@@ -134,6 +134,14 @@ chmod +x ~/.claude/statusline/statusline.sh
     },
     "xiaomimimo": {
       "api_url": "https://platform.xiaomimimo.com/api/v1/tokenPlan/usage"
+    },
+    "scnet": {
+      "token_env": "ANTHROPIC_AUTH_TOKEN",
+      "api_url": "https://www.scnet.cn/acx/charge/flow/llmapi/resource/list"
+    },
+    "scnet-tp": {
+      "token_env": "ANTHROPIC_AUTH_TOKEN",
+      "api_url": "https://www.scnet.cn/acx/charge/account/currentuser/tokenplan/list"
     }
   },
   "panel": {
@@ -208,6 +216,9 @@ chmod +x ~/.claude/statusline/statusline.sh
 # 主状态行（Xiaomi MiMo）
 ❦ •■■■■■□□□□₅₆[Mimo 74%(30.3亿/41.0亿)] ↯ claude-space/statusline ▸  test ~2 -1 ▸ 05:42
 
+# 主状态行（SCNet）
+❦ •■■■■■□□□□₅₆[SCNet 49%(490万/1000万)] ↯ claude-space/statusline ▸  test ~2 -1 ▸ 05:42
+
 # 有活动时的附加行
   ❦ Tools  3 running
   ❦ Agents 2 running
@@ -224,6 +235,8 @@ chmod +x ~/.claude/statusline/statusline.sh
 - `[¥98.66]` - DeepSeek 余额（括号内着色）
 - `[Kimi 69%/10%]` - Kimi Coding Plan 用量（5h使用率/周度使用率，各自着色）
 - `[Mimo 74%(30.3亿/41.0亿)]` - Xiaomi MiMo Token Plan 用量（百分比着色）
+- `[SCNet 49%(490万/1000万)]` - SCNet 资源用量（API 模式，百分比着色，已用/总量）
+- `[SCNet-TP 0%(0/6万)]` - SCNet TokenPlan 用量（CREDITS，百分比着色，已用/总量）
 - `↯` - 余额与路径之间的分隔符
 - `▸` - 路径、分支、时间之间的分隔符
 - `claude-space/statusline` - 两级目录名（青色）
@@ -246,7 +259,9 @@ chmod +x ~/.claude/statusline/statusline.sh
 ├── providers/               # Provider 脚本目录
 │   ├── deepseek.sh          # DeepSeek 余额查询
 │   ├── kimi.sh              # Kimi Coding Plan 用量查询
-│   └── xiaomimimo.sh        # Xiaomi MiMo Token Plan 用量查询
+│   ├── xiaomimimo.sh        # Xiaomi MiMo Token Plan 用量查询
+│   ├── scnet.sh             # SCNet 资源用量查询（API 模式）
+│   └── scnet-tp.sh          # SCNet TokenPlan 用量查询（开发中）
 ├── scripts/                 # 辅助脚本目录
 │   ├── refresh-xiaomimimo-cookie.js   # MiMo cookie 自动刷新（Playwright）
 │   └── refresh-xiaomimimo-cookie.sh   # MiMo cookie 刷新入口脚本
@@ -307,6 +322,62 @@ chmod +x ~/.claude/statusline/statusline.sh
   ```json
   "xiaomimimo": {
     "api_url": "https://platform.xiaomimimo.com/api/v1/tokenPlan/usage"
+  }
+  ```
+
+### SCNet
+
+SCNet（超算互联网）有两种计费模式，系统根据 API key 格式自动路由：
+
+| 模式 | API Key 格式 | 余额接口 |
+|------|-------------|---------|
+| API 模式 | `sk-*`（普通） | `POST .../flow/llmapi/resource/list` |
+| TokenPlan 模式 | `sk-tp*` | `GET .../tokenplan/list` |
+
+**两种模式的共同点**：
+- **认证**：Cookie（浏览器登录 [scnet.cn](https://www.scnet.cn) 后获取），**非 API Key**
+- **颜色**：>90% 红，>70% 黄，否则绿
+- **Cookie 有效期**：取决于登录会话有效期，过期后脚本会提示重新登录
+
+#### API 模式（`scnet`）
+- **显示**：`SCNet 百分比(已用/总量)`
+- **接口**：`POST https://www.scnet.cn/acx/charge/flow/llmapi/resource/list`
+- **Cookie 文件**：`~/.claude/statusline/cache/scnet_cookie.txt`
+
+#### TokenPlan 模式（`scnet-tp`）
+- **显示**：`SCNet-TP 百分比(已用/总量)`
+- **接口**：`GET https://www.scnet.cn/acx/charge/account/currentuser/tokenplan/list`
+- **Cookie 文件**：`~/.claude/statusline/cache/scnet_tp_cookie.txt`
+- **响应格式**：`data[].totalAmount`（总量 CREDITS） / `data[].usedAmount`（已用）
+
+**Cookie 获取**：
+```bash
+# 1. 浏览器登录 https://www.scnet.cn
+# 2. F12 → Network → 复制 Cookie 请求头
+# 3. 存入对应模式的 Cookie 文件
+echo 'cookie字符串' > ~/.claude/statusline/cache/scnet_cookie.txt     # API 模式
+echo 'cookie字符串' > ~/.claude/statusline/cache/scnet_tp_cookie.txt   # TokenPlan 模式
+```
+
+**自动路由**：系统从 `ANTHROPIC_BASE_URL` 提取 `scnet`，再读取 `ANTHROPIC_AUTH_TOKEN` 检查 key 格式：
+- `sk-tp*` → 路由到 `scnet-tp` provider
+- 其他 → 路由到 `scnet` provider
+
+**config.json 配置**：
+```json
+"scnet": {
+    "token_env": "ANTHROPIC_AUTH_TOKEN",
+    "api_url": "https://www.scnet.cn/acx/charge/flow/llmapi/resource/list"
+},
+"scnet-tp": {
+    "token_env": "ANTHROPIC_AUTH_TOKEN",
+    "api_url": "https://www.scnet.cn/acx/charge/account/currentuser/tokenplan/list"
+}
+```
+- **config.json 配置**：无需 `token_env`，脚本从 `~/.claude/statusline/cache/scnet_cookie.txt` 读取
+  ```json
+  "scnet": {
+    "api_url": "https://www.scnet.cn/acx/charge/flow/llmapi/resource/list"
   }
   ```
 

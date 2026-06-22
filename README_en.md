@@ -16,7 +16,7 @@ A cross-platform statusline script for Claude Code, featuring dynamic color prog
   - 🟢 Green (< 55%)
   - 🟡 Yellow (55% ~ 75%)
   - 🔴 Red (> 75%)
-- **LLM balance/usage query**: Configurable multi-provider mode supporting DeepSeek, Kimi, Xiaomi MiMo, and more
+- **LLM balance/usage query**: Configurable multi-provider mode supporting DeepSeek, Kimi, Xiaomi MiMo, SCNet (API/TokenPlan dual-mode auto-routing), and more
 - **Smart switching**: Configure multiple providers, automatically display the first one with a valid token
 - **Real-time activity display**: Shows running Tools, Agents, and Todos count
 - **Git status integration**: Displays branch name and file change statistics
@@ -134,6 +134,14 @@ Edit `~/.claude/statusline/config.json`:
     },
     "xiaomimimo": {
       "api_url": "https://platform.xiaomimimo.com/api/v1/tokenPlan/usage"
+    },
+    "scnet": {
+      "token_env": "ANTHROPIC_AUTH_TOKEN",
+      "api_url": "https://www.scnet.cn/acx/charge/flow/llmapi/resource/list"
+    },
+    "scnet-tp": {
+      "token_env": "ANTHROPIC_AUTH_TOKEN",
+      "api_url": "https://www.scnet.cn/acx/charge/account/currentuser/tokenplan/list"
     }
   },
   "panel": {
@@ -241,7 +249,9 @@ Format description:
 ├── providers/               # Provider scripts directory
 │   ├── deepseek.sh          # DeepSeek balance query
 │   ├── kimi.sh              # Kimi Coding Plan usage query
-│   └── xiaomimimo.sh        # Xiaomi MiMo Token Plan usage query
+│   ├── xiaomimimo.sh        # Xiaomi MiMo Token Plan usage query
+│   ├── scnet.sh             # SCNet resource usage query (API mode)
+│   └── scnet-tp.sh          # SCNet TokenPlan usage query
 ├── scripts/                 # Helper scripts directory
 │   ├── refresh-xiaomimimo-cookie.js   # MiMo cookie auto-refresh (Playwright)
 │   └── refresh-xiaomimimo-cookie.sh   # MiMo cookie refresh entry script
@@ -304,6 +314,56 @@ Format description:
     "api_url": "https://platform.xiaomimimo.com/api/v1/tokenPlan/usage"
   }
   ```
+
+### SCNet
+
+SCNet (超算互联网) has two billing modes. The system auto-routes based on API key format:
+
+| Mode | API Key Format | Balance Endpoint |
+|------|---------------|-----------------|
+| API mode | `sk-*` (standard) | `POST .../flow/llmapi/resource/list` |
+| TokenPlan mode | `sk-tp*` | `GET .../tokenplan/list` |
+
+**Shared**:
+- **Auth**: Cookie (browser login at [scnet.cn](https://www.scnet.cn) required), **not API Key**
+- **Color**: >90% red, >70% yellow, otherwise green
+- **Cookie Lifetime**: Depends on session validity; script will prompt to re-login when expired
+
+#### API mode (`scnet`)
+- **Display**: `SCNet percentage(used/total)`
+- **Endpoint**: `POST https://www.scnet.cn/acx/charge/flow/llmapi/resource/list`
+- **Cookie File**: `~/.claude/statusline/cache/scnet_cookie.txt`
+
+#### TokenPlan mode (`scnet-tp`)
+- **Display**: `SCNet-TP percentage(used/total)`
+- **Endpoint**: `GET https://www.scnet.cn/acx/charge/account/currentuser/tokenplan/list`
+- **Cookie File**: `~/.claude/statusline/cache/scnet_tp_cookie.txt`
+- **Response format**: `data[].totalAmount` (total CREDITS) / `data[].usedAmount` (used)
+
+**Cookie Setup**:
+```bash
+# 1. Login at https://www.scnet.cn in browser
+# 2. F12 → Network → copy Cookie request header
+# 3. Save to the correct cookie file
+echo 'cookie_string' > ~/.claude/statusline/cache/scnet_cookie.txt      # API mode
+echo 'cookie_string' > ~/.claude/statusline/cache/scnet_tp_cookie.txt   # TokenPlan mode
+```
+
+**Auto-routing**: System extracts `scnet` from `ANTHROPIC_BASE_URL`, then checks `ANTHROPIC_AUTH_TOKEN`:
+- `sk-tp*` → routes to `scnet-tp` provider
+- Other → routes to `scnet` provider
+
+**config.json**:
+```json
+"scnet": {
+    "token_env": "ANTHROPIC_AUTH_TOKEN",
+    "api_url": "https://www.scnet.cn/acx/charge/flow/llmapi/resource/list"
+},
+"scnet-tp": {
+    "token_env": "ANTHROPIC_AUTH_TOKEN",
+    "api_url": "https://www.scnet.cn/acx/charge/account/currentuser/tokenplan/list"
+}
+```
 
 ## License
 

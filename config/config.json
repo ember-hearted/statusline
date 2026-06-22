@@ -18,6 +18,14 @@
     },
     "xiaomimimo": {
       "api_url": "https://platform.xiaomimimo.com/api/v1/tokenPlan/usage"
+    },
+    "scnet": {
+      "token_env": "ANTHROPIC_AUTH_TOKEN",
+      "api_url": "https://www.scnet.cn/acx/charge/flow/llmapi/resource/list"
+    },
+    "scnet-tp": {
+      "token_env": "ANTHROPIC_AUTH_TOKEN",
+      "api_url": "https://www.scnet.cn/acx/charge/account/currentuser/tokenplan/list"
     }
   },
   "panel": {
