@@ -146,26 +146,36 @@ copy_files() {
         chmod +x "$install_dir/scripts/refresh-xiaomimimo-cookie.sh"
     fi
 
+    # 复制火山方舟 cookie 刷新脚本
+    if [ -f "$PROJECT_ROOT/scripts/refresh-volces-cookie.js" ]; then
+        cp "$PROJECT_ROOT/scripts/refresh-volces-cookie.js" "$install_dir/scripts/"
+    fi
+    if [ -f "$PROJECT_ROOT/scripts/refresh-volces-cookie.sh" ]; then
+        cp "$PROJECT_ROOT/scripts/refresh-volces-cookie.sh" "$install_dir/scripts/"
+        chmod +x "$install_dir/scripts/refresh-volces-cookie.sh"
+    fi
+
     print_success "文件复制完成"
 }
 
-# 安装 MiMo cookie 刷新脚本的依赖
-install_mimo_deps() {
+# 安装 cookie 刷新脚本依赖（MiMo 与火山方舟共用 Playwright）
+install_cookie_refresh_deps() {
     local install_dir="$1"
     local scripts_dir="$install_dir/scripts"
 
-    if [ ! -f "$scripts_dir/refresh-xiaomimimo-cookie.js" ]; then
+    # 任一刷新脚本存在即安装 Playwright
+    if [ ! -f "$scripts_dir/refresh-xiaomimimo-cookie.js" ] && [ ! -f "$scripts_dir/refresh-volces-cookie.js" ]; then
         return 0
     fi
 
     # 检查 node
     if ! command -v node &> /dev/null; then
-        print_warning "未检测到 Node.js，MiMo cookie 自动刷新功能不可用"
+        print_warning "未检测到 Node.js，cookie 自动刷新功能不可用"
         print_warning "安装 Node.js 后运行: cd $scripts_dir && npm install playwright && npx playwright install chromium"
         return 0
     fi
 
-    print_info "安装 MiMo cookie 刷新依赖..."
+    print_info "安装 cookie 刷新依赖 (Playwright)..."
 
     # 初始化 package.json 并安装 playwright
     cd "$scripts_dir"
@@ -176,7 +186,7 @@ install_mimo_deps() {
     npx playwright install chromium 2>&1 | tail -1
 
     cd "$PROJECT_ROOT"
-    print_success "MiMo cookie 刷新依赖安装完成"
+    print_success "cookie 刷新依赖安装完成"
 }
 
 # 配置 Claude Code settings.json
@@ -415,7 +425,7 @@ main() {
             check_dependencies
             create_install_dir "$install_dir"
             copy_files "$install_dir"
-            install_mimo_deps "$install_dir"
+            install_cookie_refresh_deps "$install_dir"
             configure_claude "$install_dir"
             verify_installation "$install_dir"
 

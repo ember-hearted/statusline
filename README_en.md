@@ -260,9 +260,12 @@ Format description:
 │   └── volces.sh            # Volcengine Ark Coding/Agent Plan usage query (Cookie auth)
 ├── scripts/                 # Helper scripts directory
 │   ├── refresh-xiaomimimo-cookie.js   # MiMo cookie auto-refresh (Playwright)
-│   └── refresh-xiaomimimo-cookie.sh   # MiMo cookie refresh entry script
+│   ├── refresh-xiaomimimo-cookie.sh   # MiMo cookie refresh entry script
+│   ├── refresh-volces-cookie.js       # Volcengine Ark cookie auto-refresh (Playwright)
+│   └── refresh-volces-cookie.sh       # Volcengine Ark cookie refresh entry script
 ├── cache/                   # Runtime cache (auto-generated)
 │   ├── xiaomimimo_cookie.txt          # MiMo auth cookie
+│   ├── volces_cookie.txt              # Volcengine Ark auth cookie
 │   └── balance_*.txt                  # Provider balance cache
 └── transcript-parser-lite.js # Transcript parser
 ```
@@ -395,6 +398,18 @@ Display format is `5h-rate/weekly-rate`, each percentage colored by threshold in
    ```
 
 > ⚠️ The `digest` JWT in the Cookie expires in ~2 days. When expired, the status line shows `方舟 ⚠ Cookie已过期`; re-copy the Cookie.
+
+**Auto-refresh** (recommended): a Playwright script logs in and extracts the Cookie automatically, avoiding manual copy:
+
+```bash
+~/.claude/statusline/scripts/refresh-volces-cookie.sh          # first run opens a browser for login
+~/.claude/statusline/scripts/refresh-volces-cookie.sh --quiet  # quiet mode (exits silently on expired session, for cron)
+```
+
+- First run opens a browser for manual Volcengine login; session persists to `cache/volces_state/`
+- Subsequent runs refresh headlessly, writing to `volces_cookie.txt`
+- Requires Node.js + Playwright (auto-installed during setup, shared with the MiMo refresh script)
+- Recommended to run via cron or `/loop` every 1–2 days
 
 **config.json**:
 ```json

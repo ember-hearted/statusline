@@ -270,9 +270,12 @@ chmod +x ~/.claude/statusline/statusline.sh
 │   └── volces.sh            # 火山方舟 Coding/Agent Plan 用量查询（Cookie 鉴权）
 ├── scripts/                 # 辅助脚本目录
 │   ├── refresh-xiaomimimo-cookie.js   # MiMo cookie 自动刷新（Playwright）
-│   └── refresh-xiaomimimo-cookie.sh   # MiMo cookie 刷新入口脚本
+│   ├── refresh-xiaomimimo-cookie.sh   # MiMo cookie 刷新入口脚本
+│   ├── refresh-volces-cookie.js       # 火山方舟 cookie 自动刷新（Playwright）
+│   └── refresh-volces-cookie.sh       # 火山方舟 cookie 刷新入口脚本
 ├── cache/                   # 运行时缓存（自动生成）
 │   ├── xiaomimimo_cookie.txt          # MiMo 认证 cookie
+│   ├── volces_cookie.txt              # 火山方舟认证 cookie
 │   └── balance_*.txt                  # 各 provider 余额缓存
 └── transcript-parser-lite.js # Transcript 解析器
 ```
@@ -411,6 +414,18 @@ echo 'cookie字符串' > ~/.claude/statusline/cache/scnet_tp_cookie.txt   # Toke
    ```
 
 > ⚠️ Cookie 中 `digest` JWT 有效期约 2 天，过期后状态栏会显示 `方舟 ⚠ Cookie已过期` 提示，需重新复制。
+
+**自动刷新**（推荐）：提供 Playwright 脚本自动登录并提取 Cookie，免去手动复制：
+
+```bash
+~/.claude/statusline/scripts/refresh-volces-cookie.sh          # 首次运行会打开浏览器登录
+~/.claude/statusline/scripts/refresh-volces-cookie.sh --quiet  # 静默模式（登录态失效时静默退出，适合 cron）
+```
+
+- 首次运行打开浏览器手动登录火山引擎账号，登录态持久化到 `cache/volces_state/`
+- 后续运行无头自动刷新，写入 `volces_cookie.txt`
+- 依赖 Node.js + Playwright（安装时自动安装，与 MiMo 刷新脚本共用）
+- 建议配合 cron 或 `/loop` 每 1–2 天刷新一次
 
 **config.json 配置**：
 ```json
