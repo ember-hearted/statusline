@@ -16,7 +16,7 @@
   - 🟢 绿色 (< 55%)
   - 🟡 黄色 (55% ~ 75%)
   - 🔴 红色 (> 75%)
-- **LLM 余额查询**：可配置的多 provider 模式，支持 DeepSeek、Kimi、Xiaomi MiMo、SCNet（API/TokenPlan 双模式自动路由）等厂商余额/用量显示
+- **LLM 余额查询**：可配置的多 provider 模式，支持 DeepSeek、Kimi、Xiaomi MiMo、SCNet（API/TokenPlan 双模式自动路由）、火山方舟（Coding/Agent Plan 双模式自动路由）等厂商余额/用量显示
 - **智能切换**：配置多个 provider，自动显示当前生效（token 有效）的那一个
 - **实时活动显示**：显示进行中的 Tools、Agents、Todos 数量
 - **Git 状态集成**：显示分支名和文件变动统计
@@ -142,6 +142,10 @@ chmod +x ~/.claude/statusline/statusline.sh
     "scnet-tp": {
       "token_env": "ANTHROPIC_AUTH_TOKEN",
       "api_url": "https://www.scnet.cn/acx/charge/account/currentuser/tokenplan/list"
+    },
+    "volces": {
+      "token_env": "ANTHROPIC_AUTH_TOKEN",
+      "api_url": "https://console.volcengine.com/api/top/ark/cn-beijing/2024-01-01"
     }
   },
   "panel": {
@@ -237,6 +241,7 @@ chmod +x ~/.claude/statusline/statusline.sh
 - `[Mimo 74%(30.3亿/41.0亿)]` - Xiaomi MiMo Token Plan 用量（百分比着色）
 - `[SCNet 49%(490万/1000万)]` - SCNet 资源用量（API 模式，百分比着色，已用/总量）
 - `[SCNet-TP 0%(0/6万)]` - SCNet TokenPlan 用量（CREDITS，百分比着色，已用/总量）
+- `[方舟Coding 21%/3%]` - 火山方舟 Coding Plan 用量（5h/周使用率，各自着色）；Agent Plan 显示为 `方舟Agent`
 - `↯` - 余额与路径之间的分隔符
 - `▸` - 路径、分支、时间之间的分隔符
 - `claude-space/statusline` - 两级目录名（青色）
@@ -261,7 +266,8 @@ chmod +x ~/.claude/statusline/statusline.sh
 │   ├── kimi.sh              # Kimi Coding Plan 用量查询
 │   ├── xiaomimimo.sh        # Xiaomi MiMo Token Plan 用量查询
 │   ├── scnet.sh             # SCNet 资源用量查询（API 模式）
-│   └── scnet-tp.sh          # SCNet TokenPlan 用量查询（开发中）
+│   ├── scnet-tp.sh          # SCNet TokenPlan 用量查询（开发中）
+│   └── volces.sh            # 火山方舟 Coding/Agent Plan 用量查询（Cookie 鉴权）
 ├── scripts/                 # 辅助脚本目录
 │   ├── refresh-xiaomimimo-cookie.js   # MiMo cookie 自动刷新（Playwright）
 │   └── refresh-xiaomimimo-cookie.sh   # MiMo cookie 刷新入口脚本
@@ -380,6 +386,39 @@ echo 'cookie字符串' > ~/.claude/statusline/cache/scnet_tp_cookie.txt   # Toke
     "api_url": "https://www.scnet.cn/acx/charge/flow/llmapi/resource/list"
   }
   ```
+
+### 火山方舟 (Volcengine Ark)
+
+火山方舟的 Coding Plan 与 Agent Plan 套餐用量查询。根据 `ANTHROPIC_BASE_URL` 的路径自动路由：
+
+- `/api/coding` → `GetCodingPlanUsage` 接口，标签 `方舟Coding`
+- `/api/plan` → `GetAgentPlanAFPUsage` 接口，标签 `方舟Agent`
+
+显示格式为 `5h使用率/周使用率`，两个百分比各自按阈值着色，例如 `方舟Coding 21%/3%`。
+
+- **认证方式**：Cookie + `x-csrf-token`（火山控制台代理接口，非官方 OpenAPI）。火山官方 OpenAPI 需 AK/SK V4 签名，本插件走控制台 Cookie 代理以避免额外密钥。
+- **Cookie 文件**：`~/.claude/statusline/cache/volces_cookie.txt`
+- **token_env**：`ANTHROPIC_AUTH_TOKEN`（仅用于通过调度器的 token 非空检查，实际鉴权用 Cookie）
+
+**Cookie 获取**：
+
+1. 浏览器登录 https://console.volcengine.com
+2. F12 → Network → 找到任意请求 → 复制完整 `Cookie` 头（需含 `userInfo`、`digest`、`csrfToken` 字段）
+3. 存入文件：
+   ```bash
+   echo 'cookie字符串' > ~/.claude/statusline/cache/volces_cookie.txt
+   chmod 600 ~/.claude/statusline/cache/volces_cookie.txt
+   ```
+
+> ⚠️ Cookie 中 `digest` JWT 有效期约 2 天，过期后状态栏会显示 `方舟 ⚠ Cookie已过期` 提示，需重新复制。
+
+**config.json 配置**：
+```json
+"volces": {
+  "token_env": "ANTHROPIC_AUTH_TOKEN",
+  "api_url": "https://console.volcengine.com/api/top/ark/cn-beijing/2024-01-01"
+}
+```
 
 ## 许可证
 

@@ -26,6 +26,10 @@
     "scnet-tp": {
       "token_env": "ANTHROPIC_AUTH_TOKEN",
       "api_url": "https://www.scnet.cn/acx/charge/account/currentuser/tokenplan/list"
+    },
+    "volces": {
+      "token_env": "ANTHROPIC_AUTH_TOKEN",
+      "api_url": "https://console.volcengine.com/api/top/ark/cn-beijing/2024-01-01"
     }
   },
   "panel": {

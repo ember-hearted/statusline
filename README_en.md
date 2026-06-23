@@ -16,7 +16,7 @@ A cross-platform statusline script for Claude Code, featuring dynamic color prog
   - 🟢 Green (< 55%)
   - 🟡 Yellow (55% ~ 75%)
   - 🔴 Red (> 75%)
-- **LLM balance/usage query**: Configurable multi-provider mode supporting DeepSeek, Kimi, Xiaomi MiMo, SCNet (API/TokenPlan dual-mode auto-routing), and more
+- **LLM balance/usage query**: Configurable multi-provider mode supporting DeepSeek, Kimi, Xiaomi MiMo, SCNet (API/TokenPlan dual-mode auto-routing), Volcengine Ark (Coding/Agent Plan dual-mode auto-routing), and more
 - **Smart switching**: Configure multiple providers, automatically display the first one with a valid token
 - **Real-time activity display**: Shows running Tools, Agents, and Todos count
 - **Git status integration**: Displays branch name and file change statistics
@@ -142,6 +142,10 @@ Edit `~/.claude/statusline/config.json`:
     "scnet-tp": {
       "token_env": "ANTHROPIC_AUTH_TOKEN",
       "api_url": "https://www.scnet.cn/acx/charge/account/currentuser/tokenplan/list"
+    },
+    "volces": {
+      "token_env": "ANTHROPIC_AUTH_TOKEN",
+      "api_url": "https://console.volcengine.com/api/top/ark/cn-beijing/2024-01-01"
     }
   },
   "panel": {
@@ -227,6 +231,7 @@ Format description:
 - `₅₆` - Usage percentage (subscript digits)
 - `[¥98.66]` - DeepSeek balance (colored inside brackets)
 - `[Kimi 69%/10%]` - Kimi Coding Plan usage (5h rate / weekly quota, each colored independently)
+- `[方舟Coding 21%/3%]` - Volcengine Ark Coding Plan usage (5h / weekly rate, each colored independently); Agent Plan shows as `方舟Agent`
 - `↯` - Separator between balance and path
 - `▸` - Separator between path, branch, and time
 - `claude-space/statusline` - Two-level directory name (cyan)
@@ -251,7 +256,8 @@ Format description:
 │   ├── kimi.sh              # Kimi Coding Plan usage query
 │   ├── xiaomimimo.sh        # Xiaomi MiMo Token Plan usage query
 │   ├── scnet.sh             # SCNet resource usage query (API mode)
-│   └── scnet-tp.sh          # SCNet TokenPlan usage query
+│   ├── scnet-tp.sh          # SCNet TokenPlan usage query
+│   └── volces.sh            # Volcengine Ark Coding/Agent Plan usage query (Cookie auth)
 ├── scripts/                 # Helper scripts directory
 │   ├── refresh-xiaomimimo-cookie.js   # MiMo cookie auto-refresh (Playwright)
 │   └── refresh-xiaomimimo-cookie.sh   # MiMo cookie refresh entry script
@@ -362,6 +368,39 @@ echo 'cookie_string' > ~/.claude/statusline/cache/scnet_tp_cookie.txt   # TokenP
 "scnet-tp": {
     "token_env": "ANTHROPIC_AUTH_TOKEN",
     "api_url": "https://www.scnet.cn/acx/charge/account/currentuser/tokenplan/list"
+}
+```
+
+### Volcengine Ark (火山方舟)
+
+Usage query for Volcengine Ark Coding Plan and Agent Plan. Auto-routes based on the `ANTHROPIC_BASE_URL` path:
+
+- `/api/coding` → `GetCodingPlanUsage` endpoint, label `方舟Coding`
+- `/api/plan` → `GetAgentPlanAFPUsage` endpoint, label `方舟Agent`
+
+Display format is `5h-rate/weekly-rate`, each percentage colored by threshold independently, e.g. `方舟Coding 21%/3%`.
+
+- **Auth**: Cookie + `x-csrf-token` (console proxy endpoint, not the official OpenAPI). The official OpenAPI requires AK/SK V4 signing; this plugin uses the console Cookie proxy to avoid extra keys.
+- **Cookie File**: `~/.claude/statusline/cache/volces_cookie.txt`
+- **token_env**: `ANTHROPIC_AUTH_TOKEN` (only to pass the dispatcher's non-empty token check; actual auth uses the Cookie)
+
+**Cookie retrieval**:
+
+1. Log in to https://console.volcengine.com in your browser
+2. F12 → Network → find any request → copy the full `Cookie` header (must include `userInfo`, `digest`, `csrfToken`)
+3. Save to file:
+   ```bash
+   echo 'cookie-string' > ~/.claude/statusline/cache/volces_cookie.txt
+   chmod 600 ~/.claude/statusline/cache/volces_cookie.txt
+   ```
+
+> ⚠️ The `digest` JWT in the Cookie expires in ~2 days. When expired, the status line shows `方舟 ⚠ Cookie已过期`; re-copy the Cookie.
+
+**config.json**:
+```json
+"volces": {
+  "token_env": "ANTHROPIC_AUTH_TOKEN",
+  "api_url": "https://console.volcengine.com/api/top/ark/cn-beijing/2024-01-01"
 }
 ```
 
