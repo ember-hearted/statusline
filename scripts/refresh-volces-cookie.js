@@ -14,18 +14,41 @@
  */
 
 const { chromium } = require('playwright');
+const { execFileSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
 const COOKIE_FILE = path.join(process.env.HOME, '.claude/statusline/cache/volces_cookie.txt');
 const STATE_DIR = path.join(process.env.HOME, '.claude/statusline/cache/volces_state');
 const LOGIN_MARKER = path.join(STATE_DIR, '.login_ok');
+// 登录态失效时通过飞书通知（quiet 模式专用，cron 触发时无人值守）
+const NOTIFY_MARKER = path.join(STATE_DIR, '.notify_date'); // 记录上次通知日期，同一天不重发
+const LARK_CLI = '/opt/homebrew/bin/lark-cli';
+const NOTIFY_USER_ID = 'ou_1e7e34a4d73ce26eb80acdbb7a689515';
 // 用量页作为登录态探测目标（未登录会重定向到统一登录）
 const CONSOLE_URL = 'https://console.volcengine.com/ark/region:cn-beijing/subscription/coding-plan';
 // 未登录时可能重定向到这些域/路径
 const LOGIN_HOSTS = ['signin.volcengine.com', 'passport.volcengine.com', 'console.volcengine.com/login'];
 const QUIET = process.argv.includes('--quiet');
 const FORCE = process.argv.includes('--force');
+
+// quiet 模式下登录态失效时发飞书通知，同一天只发一次（避免 cron 多次触发刷屏）
+function notifyLoginExpired() {
+    const today = new Date().toLocaleDateString('zh-CN');
+    try {
+        if (fs.existsSync(NOTIFY_MARKER) && fs.readFileSync(NOTIFY_MARKER, 'utf8').trim() === today) {
+            return; // 今天已通知过
+        }
+    } catch {}
+    try {
+        execFileSync(LARK_CLI, [
+            'im', '+messages-send', '--as', 'bot',
+            '--user-id', NOTIFY_USER_ID,
+            '--text', '🔴 火山方舟登录态已失效，cookie 无法自动刷新。请手动运行：\n~/.claude/statusline/scripts/refresh-volces-cookie.sh --force',
+        ], { stdio: 'ignore', timeout: 30000 });
+        fs.writeFileSync(NOTIFY_MARKER, today, 'utf8');
+    } catch {}
+}
 
 async function main() {
     fs.mkdirSync(path.dirname(COOKIE_FILE), { recursive: true });
@@ -56,7 +79,8 @@ async function main() {
         if (needsLogin) {
             try { fs.unlinkSync(LOGIN_MARKER); } catch {}
             if (QUIET) {
-                // 静默模式下登录态失效，直接退出
+                // 静默模式下登录态失效，发飞书通知后退出
+                notifyLoginExpired();
                 await browser.close();
                 process.exit(1);
             }
@@ -98,6 +122,8 @@ async function main() {
 
         // 标记登录成功（用于后续无头模式判断）
         fs.writeFileSync(LOGIN_MARKER, new Date().toISOString(), 'utf8');
+        // 刷新成功后清除通知去重标记，确保下次失效能重新通知
+        try { fs.unlinkSync(NOTIFY_MARKER); } catch {}
 
         if (!QUIET) {
             // digest 是 JWT，解析 exp 显示过期时间

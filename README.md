@@ -419,13 +419,14 @@ echo 'cookie字符串' > ~/.claude/statusline/cache/scnet_tp_cookie.txt   # Toke
 
 ```bash
 ~/.claude/statusline/scripts/refresh-volces-cookie.sh          # 首次运行会打开浏览器登录
-~/.claude/statusline/scripts/refresh-volces-cookie.sh --quiet  # 静默模式（登录态失效时静默退出，适合 cron）
+~/.claude/statusline/scripts/refresh-volces-cookie.sh --quiet  # 静默模式（登录态失效时发飞书通知并退出，适合 cron）
 ```
 
 - 首次运行打开浏览器手动登录火山引擎账号，登录态持久化到 `cache/volces_state/`
 - 后续运行无头自动刷新，写入 `volces_cookie.txt`
 - 依赖 Node.js + Playwright（安装时自动安装，与 MiMo 刷新脚本共用）
 - 建议配合 cron 或 `/loop` 每 1–2 天刷新一次
+- `--quiet` 模式登录态失效时通过 lark-cli 发飞书私信提醒（同一天去重，不刷屏），需手动跑 `--force` 重新登录
 
 **config.json 配置**：
 ```json

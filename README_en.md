@@ -403,13 +403,14 @@ Display format is `5h-rate/weekly-rate`, each percentage colored by threshold in
 
 ```bash
 ~/.claude/statusline/scripts/refresh-volces-cookie.sh          # first run opens a browser for login
-~/.claude/statusline/scripts/refresh-volces-cookie.sh --quiet  # quiet mode (exits silently on expired session, for cron)
+~/.claude/statusline/scripts/refresh-volces-cookie.sh --quiet  # quiet mode (sends a Lark notification on expired session, then exits; for cron)
 ```
 
 - First run opens a browser for manual Volcengine login; session persists to `cache/volces_state/`
 - Subsequent runs refresh headlessly, writing to `volces_cookie.txt`
 - Requires Node.js + Playwright (auto-installed during setup, shared with the MiMo refresh script)
 - Recommended to run via cron or `/loop` every 1–2 days
+- In `--quiet` mode, an expired session triggers a Lark DM via lark-cli (deduped per day, no spam); re-login manually with `--force`
 
 **config.json**:
 ```json
