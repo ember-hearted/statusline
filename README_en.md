@@ -71,6 +71,10 @@ bash bin/install.sh -c
 bash bin/install.sh -u
 ```
 
+### Reinstall and Cache Preservation
+
+When upgrading by re-running `bash bin/install.sh`, the script backs up the old directory before overwriting. The `~/.claude/statusline/cache/` directory (which stores runtime state such as the Volcengine Ark Cookie and balance caches) is preserved during the overwrite, so you don't need to log in again or reconfigure the Cookie.
+
 ### Manual Installation
 
 If the install script doesn't work:

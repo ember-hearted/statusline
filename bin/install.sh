@@ -96,7 +96,22 @@ create_install_dir() {
         backup_dir="${install_dir}.backup.$(date +%Y%m%d_%H%M%S)"
         cp -r "$install_dir" "$backup_dir"
         print_info "已备份到: $backup_dir"
+
+        # 保留 cache 目录 (存有 provider Cookie、余额缓存等运行时状态)
+        # 先移出 cache，再清空目录，最后移回，避免 rm -rf 误删登录态
+        cache_preserved=""
+        if [ -d "$install_dir/cache" ]; then
+            cache_preserved="${TMPDIR:-/tmp}/statusline_cache_preserved.$$"
+            rm -rf "$cache_preserved" 2>/dev/null || true
+            mv "$install_dir/cache" "$cache_preserved"
+        fi
+
         rm -rf "$install_dir"
+
+        if [ -n "$cache_preserved" ] && [ -d "$cache_preserved" ]; then
+            mkdir -p "$install_dir"
+            mv "$cache_preserved" "$install_dir/cache"
+        fi
     fi
 
     mkdir -p "$install_dir/providers"

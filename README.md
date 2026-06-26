@@ -71,6 +71,10 @@ bash bin/install.sh -c
 bash bin/install.sh -u
 ```
 
+### 重新安装与缓存保留
+
+重新运行 `bash bin/install.sh` 升级时，安装脚本会先备份旧目录再覆盖。`~/.claude/statusline/cache/` 目录（存放火山方舟 Cookie、余额缓存等运行时状态）会在覆盖过程中被保留，无需重新登录或重新配置 Cookie。
+
 ### 手动安装
 
 如果安装脚本无法使用，可以手动安装：
