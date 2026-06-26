@@ -272,11 +272,14 @@ chmod +x ~/.claude/statusline/statusline.sh
 │   ├── refresh-xiaomimimo-cookie.js   # MiMo cookie 自动刷新（Playwright）
 │   ├── refresh-xiaomimimo-cookie.sh   # MiMo cookie 刷新入口脚本
 │   ├── refresh-volces-cookie.js       # 火山方舟 cookie 自动刷新（Playwright）
-│   └── refresh-volces-cookie.sh       # 火山方舟 cookie 刷新入口脚本
+│   ├── refresh-volces-cookie.sh       # 火山方舟 cookie 刷新入口脚本
+│   └── check-volces-cookie.sh         # 火山方舟 cookie 过期检查（SessionStart hook 调用）
 ├── cache/                   # 运行时缓存（自动生成）
 │   ├── xiaomimimo_cookie.txt          # MiMo 认证 cookie
 │   ├── volces_cookie.txt              # 火山方舟认证 cookie
-│   └── balance_*.txt                  # 各 provider 余额缓存
+│   ├── balance_volces_coding.txt      # 火山方舟 Coding Plan 用量缓存
+│   ├── balance_volces_agent.txt       # 火山方舟 Agent Plan 用量缓存
+│   └── balance_*.txt                  # 其他 provider 余额缓存
 └── transcript-parser-lite.js # Transcript 解析器
 ```
 

@@ -64,6 +64,25 @@ show_cookie_expired_hint() {
     printf '\033[90m(请重新登录 console.volcengine.com 并更新 Cookie)\033[0m'
 }
 
+# 根据 ANTHROPIC_BASE_URL 的 path 区分 Coding / Agent Plan
+BASE_URL="${ANTHROPIC_BASE_URL:-}"
+API_BASE="https://console.volcengine.com/api/top/ark/cn-beijing/2024-01-01"
+
+if [[ "$BASE_URL" == */api/plan* ]]; then
+    ACTION="GetAgentPlanAFPUsage"
+    PLAN_PATH="agent-plan"
+    LABEL="方舟Agent"
+    CACHE_FILE="${CACHE_DIR}/balance_volces_agent.txt"
+else
+    # 默认 Coding Plan (含 /api/coding 或无法判断时)
+    ACTION="GetCodingPlanUsage"
+    PLAN_PATH="coding-plan"
+    LABEL="方舟Coding"
+    CACHE_FILE="${CACHE_DIR}/balance_volces_coding.txt"
+fi
+
+CACHE_TTL=300  # 5分钟缓存
+
 if [ -z "$COOKIE" ]; then
     show_hint
     exit 0
@@ -71,9 +90,6 @@ fi
 
 # 从 Cookie 中提取 csrfToken 值作为 x-csrf-token 头
 CSRF_TOKEN=$(echo "$COOKIE" | grep -o 'csrfToken=[^;]*' | head -1 | sed 's/csrfToken=//' || true)
-
-CACHE_FILE="${CACHE_DIR}/balance_volces.txt"
-CACHE_TTL=300  # 5分钟缓存
 
 # 读取缓存
 if [ -f "$CACHE_FILE" ]; then
@@ -83,21 +99,6 @@ if [ -f "$CACHE_FILE" ]; then
         cat "$CACHE_FILE"
         exit 0
     fi
-fi
-
-# 根据 ANTHROPIC_BASE_URL 的 path 区分 Coding / Agent Plan
-BASE_URL="${ANTHROPIC_BASE_URL:-}"
-API_BASE="https://console.volcengine.com/api/top/ark/cn-beijing/2024-01-01"
-
-if [[ "$BASE_URL" == */api/plan* ]]; then
-    ACTION="GetAgentPlanAFPUsage"
-    PLAN_PATH="agent-plan"
-    LABEL="方舟Agent"
-else
-    # 默认 Coding Plan (含 /api/coding 或无法判断时)
-    ACTION="GetCodingPlanUsage"
-    PLAN_PATH="coding-plan"
-    LABEL="方舟Coding"
 fi
 
 REFERER="https://console.volcengine.com/ark/region:cn-beijing/subscription/${PLAN_PATH}"

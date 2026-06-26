@@ -262,11 +262,14 @@ Format description:
 │   ├── refresh-xiaomimimo-cookie.js   # MiMo cookie auto-refresh (Playwright)
 │   ├── refresh-xiaomimimo-cookie.sh   # MiMo cookie refresh entry script
 │   ├── refresh-volces-cookie.js       # Volcengine Ark cookie auto-refresh (Playwright)
-│   └── refresh-volces-cookie.sh       # Volcengine Ark cookie refresh entry script
+│   ├── refresh-volces-cookie.sh       # Volcengine Ark cookie refresh entry script
+│   └── check-volces-cookie.sh         # Volcengine Ark cookie expiration check (SessionStart hook)
 ├── cache/                   # Runtime cache (auto-generated)
 │   ├── xiaomimimo_cookie.txt          # MiMo auth cookie
 │   ├── volces_cookie.txt              # Volcengine Ark auth cookie
-│   └── balance_*.txt                  # Provider balance cache
+│   ├── balance_volces_coding.txt      # Volcengine Ark Coding Plan usage cache
+│   ├── balance_volces_agent.txt       # Volcengine Ark Agent Plan usage cache
+│   └── balance_*.txt                  # Other provider balance cache
 └── transcript-parser-lite.js # Transcript parser
 ```
 
