@@ -23,3 +23,6 @@ CLAUDE.md
 
 # 源代码备份（压缩后的工作文件已提交）
 scripts/*.src.js
+
+# IDE 配置
+.idea/
