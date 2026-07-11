@@ -26,7 +26,8 @@ fi
 if ! [ -d "$SCRIPT_DIR/node_modules/playwright" ]; then
     echo "首次运行，正在安装 Playwright..." >&2
     (cd "$SCRIPT_DIR" && npm install playwright 2>&1 | tail -1)
-    (cd "$SCRIPT_DIR" && npx playwright install chromium 2>&1 | tail -1)
+    # 复用系统 Google Chrome，无需下载 Playwright chromium（channel=chrome 由 .js 指定）
+    (cd "$SCRIPT_DIR" && npx playwright install chrome 2>&1 | tail -1)
 fi
 
 # 运行刷新脚本（退出码透传，供 cron 判断登录态是否失效）

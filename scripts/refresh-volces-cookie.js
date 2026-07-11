@@ -58,10 +58,14 @@ async function main() {
     // --force 时强制有头模式（用于首次登录或重新登录）
     const hasState = !FORCE && fs.existsSync(LOGIN_MARKER);
 
+    // 默认复用系统 Google Chrome（免下载 Playwright chromium ~150MB）
+    // 设置 PLAYWRIGHT_CHANNEL=chromium 可改用 Playwright 自带浏览器
+    const browserChannel = process.env.PLAYWRIGHT_CHANNEL || 'chrome';
     const browser = await chromium.launchPersistentContext(STATE_DIR, {
         headless: hasState, // 有登录态时无头运行，否则有头让用户登录
         viewport: { width: 1280, height: 800 },
         locale: 'zh-CN',
+        channel: browserChannel,
     });
 
     const page = browser.pages()[0] || await browser.newPage();

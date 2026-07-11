@@ -24,7 +24,8 @@ fi
 if ! node -e "require('playwright')" 2>/dev/null; then
     echo "首次运行，正在安装 Playwright..." >&2
     npm install -g playwright 2>&1 | tail -1
-    npx playwright install chromium 2>&1 | tail -1
+    # 复用系统 Google Chrome，无需下载 Playwright chromium（channel=chrome 由 .js 指定）
+    npx playwright install chrome 2>&1 | tail -1
 fi
 
 # 运行刷新脚本
