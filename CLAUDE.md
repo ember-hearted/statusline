@@ -129,13 +129,25 @@ count=$(echo "$text" | grep -c "pattern" 2>/dev/null | head -1 || echo "0")
 - 或使用转换后的 Unix 路径格式（`/e/dev-tools/` 而不是 `E:\dev-tools\`）
 - 避免在 Read 工具中使用 Windows 绝对路径（常出现 "File does not exist" 错误）
 
+## 余额查询（stale-while-revalidate）
+
+余额显示采用 stale-while-revalidate，同步路径零等待：
+
+- **同步路径**：直接 `read` 统一缓存文件 `cache/balance_current.txt`（零 fork、零等待）
+- **后台刷新**：节流标记 `cache/balance_refresh.marker` 记录上次刷新时间，TTL（300s）外才 `&` 后台 spawn `query-balance.sh`，其 stdout 原子写入（tmp + mv）统一缓存
+- **节流**：TTL 内不重复 spawn 调度器，避免高频刷新堆积进程；调度器内部另有 provider 层 5min TTL 控制是否真发网络请求
+- **降级**：缓存文件不存在时余额片段为空，主状态行照常输出
+
+注：统一缓存 `balance_current.txt` 由后台调度器写入，而非直接读 provider 各自的缓存（如 `balance_deepseek.txt`）--因同步路径不知当前 provider（推断逻辑在调度器内）。
+
 ## 配置解析
 
 ### 解析策略（性能关键路径）
 
 配置解析是状态栏启动耗时的关键路径。曾因 `parse_config` 在 Windows Git Bash 上每次调用约 1 秒（fork 子进程开销大）、被调用 10 次累计 ~8.6 秒，导致状态栏启动慢。当前策略：
 
-- **主路径**：一次 `node` 调用批量提取全部字段（约 60ms），输出 `name="value"` 供 `eval` 注入
+- **mtime 缓存命中**（常态）：`config.json` 未比缓存新时，`source` 预解析的 `cache/config_parsed.sh`（零 fork）
+- **miss**：一次 `node` 调用批量提取全部字段（约 60ms），`eval` 注入并写入缓存
 - **fallback**：`node` 不可用时走 `parse_config`（慢，但功能可用）
 
 ### 嵌套 JSON 路径

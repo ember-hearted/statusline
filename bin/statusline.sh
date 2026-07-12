@@ -5,14 +5,15 @@
 set -e
 
 # 读取输入
-input=$(cat)
+read -r input || true  # 读 stdin JSON（read 内建替代 cat，零 fork；|| true 防 EOF 触发 set -e）
 
 # 配置目录
 CONFIG_DIR="${CLAUDE_STATUSLINE_DIR:-$HOME/.claude/statusline}"
 CONFIG_FILE="$CONFIG_DIR/config.json"
+CACHE_DIR="$CONFIG_DIR/cache"
 
 # 脚本所在目录（用于开发模式下定位资源）
-SCRIPT_DIR_STATUSLINE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR_STATUSLINE="$(cd "${BASH_SOURCE[0]%/*}" && pwd)"  # dirname 用参数扩展，省一次 fork
 
 # 解析配置（简单解析，不依赖 jq）
 # 支持嵌套路径，如 "colors.thresholds.green"
@@ -92,55 +93,71 @@ show_agents=true
 show_todos=true
 show_git_changes=true
 
-if [ -f "$CONFIG_FILE" ] && command -v node >/dev/null 2>&1; then
-    # 一次 node 调用提取全部字段，输出 name="value" 供 eval 注入
-    _config_parsed=$(node -e '
-        const fs = require("fs");
-        let cfg = {};
-        try { cfg = JSON.parse(fs.readFileSync(process.argv[1], "utf8")); } catch {}
-        const get = (p, d) => {
-            let v = p.split(".").reduce((o, k) => (o == null ? o : o[k]), cfg);
-            return v == null ? d : v;
-        };
-        const fields = [
-            ["green_threshold",    "colors.thresholds.green",   55],
-            ["yellow_threshold",   "colors.thresholds.yellow",  75],
-            ["bar_length",         "bar_length",                10],
-            ["show_git",           "panel.git.show_git",        true],
-            ["show_time",          "panel.show_time",           true],
-            ["branch_color",       "colors.branch",             "33"],
-            ["show_tools",         "panel.show_tools",          true],
-            ["show_agents",        "panel.show_agents",         true],
-            ["show_todos",         "panel.show_todos",          true],
-            ["show_git_changes",   "panel.git.show_git_changes",true],
-        ];
-        for (const [name, path, dflt] of fields) {
-            process.stdout.write(name + "=" + JSON.stringify(String(get(path, dflt))) + "\n");
-        }
-    ' "$CONFIG_FILE" 2>/dev/null || true)
-    [ -n "$_config_parsed" ] && eval "$_config_parsed" || true
-else
-    # fallback：node 不可用时走原解析（慢，但功能可用）
-    green_threshold=$(parse_config "colors.thresholds.green" "55")
-    yellow_threshold=$(parse_config "colors.thresholds.yellow" "75")
-    bar_length=$(parse_config "bar_length" "10")
-    show_git=$(parse_config "panel.git.show_git" "true")
-    show_time=$(parse_config "panel.show_time" "true")
-    branch_color=$(parse_config "colors.branch" "33" | tr -d '"')  # 默认橙色(33)，确保去掉引号
-    show_tools=$(parse_config "panel.show_tools" "true")
-    show_agents=$(parse_config "panel.show_agents" "true")
-    show_todos=$(parse_config "panel.show_todos" "true")
-    show_git_changes=$(parse_config "panel.git.show_git_changes" "true")
+_config_cache="$CACHE_DIR/config_parsed.sh"
+_need_parse=true
+# 命中缓存（config.json 未比缓存新）：source 零 fork，跳过 node 启动
+if [ -f "$_config_cache" ] && [ ! "$CONFIG_FILE" -nt "$_config_cache" ]; then
+    # shellcheck disable=SC1090
+    source "$_config_cache" 2>/dev/null && _need_parse=false
+fi
+
+if [ "$_need_parse" = true ]; then
+    if [ -f "$CONFIG_FILE" ] && command -v node >/dev/null 2>&1; then
+        # 一次 node 调用提取全部字段，输出 name="value" 供 eval 注入
+        _config_parsed=$(node -e '
+            const fs = require("fs");
+            let cfg = {};
+            try { cfg = JSON.parse(fs.readFileSync(process.argv[1], "utf8")); } catch {}
+            const get = (p, d) => {
+                let v = p.split(".").reduce((o, k) => (o == null ? o : o[k]), cfg);
+                return v == null ? d : v;
+            };
+            const fields = [
+                ["green_threshold",    "colors.thresholds.green",   55],
+                ["yellow_threshold",   "colors.thresholds.yellow",  75],
+                ["bar_length",         "bar_length",                10],
+                ["show_git",           "panel.git.show_git",        true],
+                ["show_time",          "panel.show_time",           true],
+                ["branch_color",       "colors.branch",             "33"],
+                ["show_tools",         "panel.show_tools",          true],
+                ["show_agents",        "panel.show_agents",         true],
+                ["show_todos",         "panel.show_todos",          true],
+                ["show_git_changes",   "panel.git.show_git_changes",true],
+            ];
+            for (const [name, path, dflt] of fields) {
+                process.stdout.write(name + "=" + JSON.stringify(String(get(path, dflt))) + "\n");
+            }
+        ' "$CONFIG_FILE" 2>/dev/null || true)
+        if [ -n "$_config_parsed" ]; then
+            eval "$_config_parsed"
+            mkdir -p "$CACHE_DIR"
+            printf '%s\n' "$_config_parsed" > "$_config_cache"
+        fi
+    else
+        # fallback：node 不可用时走原解析（慢，但功能可用）
+        green_threshold=$(parse_config "colors.thresholds.green" "55")
+        yellow_threshold=$(parse_config "colors.thresholds.yellow" "75")
+        bar_length=$(parse_config "bar_length" "10")
+        show_git=$(parse_config "panel.git.show_git" "true")
+        show_time=$(parse_config "panel.show_time" "true")
+        branch_color=$(parse_config "colors.branch" "33" | tr -d '"')  # 默认橙色(33)，确保去掉引号
+        show_tools=$(parse_config "panel.show_tools" "true")
+        show_agents=$(parse_config "panel.show_agents" "true")
+        show_todos=$(parse_config "panel.show_todos" "true")
+        show_git_changes=$(parse_config "panel.git.show_git_changes" "true")
+    fi
 fi
 
 # 获取基本信息
-username=$(whoami 2>/dev/null || echo "user")
-full_path=$(echo "$input" | grep -o '"cwd":"[^"]*"' | cut -d'"' -f4)
+username="${USERNAME:-${USER:-$(whoami 2>/dev/null || echo user)}}"  # 常态零 fork；USERNAME/USER 都缺才 fallback whoami
+# 参数扩展提取 cwd（零 fork，替代 echo|grep|cut）
+full_path="${input#*\"cwd\":\"}"
+full_path="${full_path%%\"*}"
 [ -z "$full_path" ] && full_path="$PWD"
-current_dir=$(basename "$full_path")
 
 # 直接使用输入的 used_percentage
-used_pct=$(echo "$input" | grep -o '"used_percentage":[0-9]*' | cut -d':' -f2)
+used_pct="${input#*\"used_percentage\":}"
+used_pct="${used_pct%%[!0-9]*}"
 [ -z "$used_pct" ] && used_pct="0"
 
 # 颜色判断
@@ -186,37 +203,48 @@ while [ $i -lt $bar_length ]; do
     i=$((i + 1))
 done
 
-# Git 信息
+# Git 信息（一次调用拿到仓库检查 + 分支 + 变动统计，替代原 rev-parse+branch+status 三次调用）
 git_info=""
 has_git=false
+branch=""
+git_status=""
 if [ "$show_git" = "true" ]; then
-    if git -C "$full_path" rev-parse --git-dir > /dev/null 2>&1 || \
-       (cd "$full_path" 2>/dev/null && git rev-parse --git-dir > /dev/null 2>&1); then
+    git_out=$(git -C "$full_path" -c core.fileMode=false status --porcelain -b 2>/dev/null || true)
+    if [ -n "$git_out" ]; then
         has_git=true
-        # 获取分支名
-        branch=$(cd "$full_path" 2>/dev/null && git -c core.fileMode=false branch --show-current 2>/dev/null || echo "detached")
+        # 首行 ## <branch> 解析分支名（参数扩展，无 fork）
+        branch_line="${git_out%%$'\n'*}"
+        case "$branch_line" in
+            "## "*"no branch"*) branch="detached" ;;
+            *"No commits yet on "*) branch="${branch_line##* on }" ;;
+            "## "*)
+                branch="${branch_line#?? }"
+                branch="${branch%%...*}"
+                branch="${branch%% *}"
+                ;;
+            *) branch="detached" ;;
+        esac
+        [ -z "$branch" ] && branch="detached"
 
-        # 获取状态
-        status=$(cd "$full_path" 2>/dev/null && git -c core.fileMode=false status --porcelain 2>/dev/null)
-
+        # 后续行解析变动统计（while read + case 内建，无 fork）
         # Git 符号: +=新增 -=删除 ~=修改 ✓=暂存
-        if [ -z "$status" ]; then
-            git_status=""
-        else
-            # 统计各类变动（使用echo避免grep返回非零退出码，只取第一个数字）
-            added=$(echo "$status" | grep -c "^??" 2>/dev/null | head -1 || echo "0")
-            modified=$(echo "$status" | grep -c "^ M" 2>/dev/null | head -1 || echo "0")
-            deleted=$(echo "$status" | grep -c "^ D" 2>/dev/null | head -1 || echo "0")
-            staged=$(echo "$status" | grep -c "^[AM]." 2>/dev/null | head -1 || echo "0")
-            # 构建状态字符串（过滤掉0值）
-            git_status=""
-            [ "$added" != "0" ] && git_status="${git_status}+${added} "
-            [ "$modified" != "0" ] && git_status="${git_status}~${modified} "
-            [ "$deleted" != "0" ] && git_status="${git_status}-${deleted} "
-            [ "$staged" != "0" ] && git_status="${git_status}✓${staged} "
-            # 去掉末尾空格（使用参数扩展代替sed）
-            git_status="${git_status% }"
-        fi
+        added=0; modified=0; deleted=0; staged=0
+        while IFS= read -r line; do
+            case "$line" in
+                "## "*|"") ;;
+                "?? "*) added=$((added + 1)) ;;
+                " M "*) modified=$((modified + 1)) ;;
+                " D "*) deleted=$((deleted + 1)) ;;
+                [AM]?*) staged=$((staged + 1)) ;;
+            esac
+        done <<< "$git_out"
+
+        # 构建状态字符串（过滤掉 0 值）
+        [ "$added" -ne 0 ] 2>/dev/null && git_status="${git_status}+${added} "
+        [ "$modified" -ne 0 ] 2>/dev/null && git_status="${git_status}~${modified} "
+        [ "$deleted" -ne 0 ] 2>/dev/null && git_status="${git_status}-${deleted} "
+        [ "$staged" -ne 0 ] 2>/dev/null && git_status="${git_status}✓${staged} "
+        git_status="${git_status% }"
         git_info="${branch}${git_status}"
     fi
 fi
@@ -233,64 +261,7 @@ c_green="\033[32m"         # 绿色
 c_red="\033[31m"           # 红色
 reset_color="\033[0m"
 
-# ========== JSON 解析函数（必须在调用前定义） ==========
-
-# 从 JSON 解析工具活动 - 只显示进行中的数量
-parse_tools_from_json() {
-    local json="$1"
-
-    # 检查是否有工具
-    local has_tools=$(echo "$json" | grep -o '"tools":\[[^]]*\]' | grep -v '"tools":\[\]')
-    [ -z "$has_tools" ] && return
-
-    # 统计运行中的工具数量
-    local running_count=$(echo "$json" | grep -o '"status":"running"' | wc -l | tr -d ' ')
-
-    # 只有运行中的工具大于0才显示
-    if [ "$running_count" -gt 0 ]; then
-        echo "❦ Tools  ${running_count} running"
-    fi
-}
-
-# 从 JSON 解析代理状态 - 只显示进行中的数量
-parse_agents_from_json() {
-    local json="$1"
-
-    # 检查是否有代理
-    local has_agents=$(echo "$json" | grep -o '"agents":\[[^]]*\]' | grep -v '"agents":\[\]')
-    [ -z "$has_agents" ] && return
-
-    # 统计运行中的代理数量
-    local running_count=$(echo "$json" | grep -o '"status":"running"[^}]*"type":"[^"]*"' | wc -l | tr -d ' ')
-
-    # 只有运行中的代理大于0才显示
-    if [ "$running_count" -gt 0 ]; then
-        echo "❦ Agents ${running_count} running"
-    fi
-}
-
-# 从 JSON 解析待办进度 - 只显示进行中的数量
-parse_todos_from_json() {
-    local json="$1"
-
-    # 检查是否有待办
-    local has_todos=$(echo "$json" | grep -o '"todos":\[[^]]*\]' | grep -v '"todos":\[\]')
-    [ -z "$has_todos" ] && return
-
-    # 提取 todos 数组内容
-    local todos_array=$(echo "$json" | sed 's/.*"todos":\[\([^]]*\)\].*/\1/')
-
-    # 统计各状态数量
-    local completed=$(echo "$todos_array" | grep -o '"status":"completed"' | wc -l | tr -d ' ')
-    local in_progress_count=$(echo "$todos_array" | grep -o '"status":"in_progress"' | wc -l | tr -d ' ')
-    local pending=$(echo "$todos_array" | grep -o '"status":"pending"' | wc -l | tr -d ' ')
-    local total=$((completed + in_progress_count + pending))
-
-    # 有进行中的待办才显示
-    if [ "$in_progress_count" -gt 0 ]; then
-        echo "❦ Todos  ${in_progress_count}/${total}"
-    fi
-}
+# transcript 活动行计数由 node 输出 key=value，bash while read 内建解析（见 Transcript 解析块）
 
 # 显示两级目录名（如：parent/current）
 get_two_level_path() {
@@ -299,12 +270,14 @@ get_two_level_path() {
     path="${path%/}"
     # 根目录特殊情况
     [ -z "$path" ] && path="/"
-    local current=$(basename "$path")
-    local parent=$(basename "$(dirname "$path")")
+    # basename / dirname 用参数扩展（零 fork，替代 basename/dirname 外部命令）
+    local current="${path##*/}"
+    local parent="${path%/*}"
+    parent="${parent##*/}"
     # 如果当前是根目录
     [ "$current" = "/" ] && current="root"
     # 如果父目录是根目录或空，只显示当前目录
-    if [ "$parent" = "/" ] || [ -z "$parent" ] || [ "$parent" = "." ]; then
+    if [ "$parent" = "/" ] || [ -z "$parent" ] || [ "$parent" = "$path" ]; then
         echo "$current"
     else
         echo "${parent}/${current}"
@@ -338,13 +311,20 @@ fi
 # 时间（只显示时间，省略日期）
 time_display=""
 if [ "$show_time" = "true" ]; then
-    time_now=$(date +%H:%M 2>/dev/null || echo "")
+    time_now=$(printf '%(%H:%M)T' -1 2>/dev/null)
+    case "$time_now" in ""|*T*|*'%'*) time_now=$(date +%H:%M 2>/dev/null || echo "") ;; esac
     [ -n "$time_now" ] && time_display=" ${sep} ${c_gray}${time_now}${reset_color}"
 fi
 
 # ========== Transcript 解析 ==========
 # 获取 transcript 路径
-transcript_path=$(echo "$input" | grep -o '"transcript_path":"[^"]*"' | cut -d'"' -f4)
+transcript_path=""
+case "$input" in
+    *'"transcript_path":"'*)
+        transcript_path="${input#*\"transcript_path\":\"}"
+        transcript_path="${transcript_path%%\"*}"
+        ;;
+esac
 
 # 初始化活动行
 tools_line=""
@@ -365,25 +345,27 @@ if [ -n "$transcript_path" ] && [ -f "$transcript_path" ] && command -v node >/d
         transcript_data=$(node "$parser_script" "$transcript_path" 2>/dev/null)
 
         if [ -n "$transcript_data" ]; then
-            # 解析工具活动
-            if [ "$show_tools" = "true" ]; then
-                tools_line=$(parse_tools_from_json "$transcript_data")
-            fi
-
-            # 解析代理状态
-            if [ "$show_agents" = "true" ]; then
-                agents_line=$(parse_agents_from_json "$transcript_data")
-            fi
-
-            # 解析待办进度
-            if [ "$show_todos" = "true" ]; then
-                todos_line=$(parse_todos_from_json "$transcript_data")
-            fi
+            # node 输出 key=value，while read 内建解析（零 fork，替代原 parse_* 的 grep）
+            tools_running=0; agents_running=0; todos_ip=0; todos_total=0
+            while IFS='=' read -r _k _v; do
+                case "$_k" in
+                    tools_running) tools_running="${_v}" ;;
+                    agents_running) agents_running="${_v}" ;;
+                    todos_in_progress) todos_ip="${_v}" ;;
+                    todos_total) todos_total="${_v}" ;;
+                esac
+            done <<< "$transcript_data"
+            [ "$show_tools" = "true" ] && [ "$tools_running" -gt 0 ] 2>/dev/null && tools_line="❦ Tools  ${tools_running} running"
+            [ "$show_agents" = "true" ] && [ "$agents_running" -gt 0 ] 2>/dev/null && agents_line="❦ Agents ${agents_running} running"
+            [ "$show_todos" = "true" ] && [ "$todos_ip" -gt 0 ] 2>/dev/null && todos_line="❦ Todos  ${todos_ip}/${todos_total}"
         fi
     fi
 fi
 
-# ========== 余额查询 ==========
+# ========== 余额查询（stale-while-revalidate）==========
+# 同步路径直接读统一缓存文件（read 内建，零 fork、零等待），后台异步触发
+# 调度器刷新。节流标记避免高频刷新时反复 spawn 调度器（调度器内部另有
+# provider 层 5min TTL，控制是否真发网络请求）。
 balance_display=""
 # 查找 query-balance.sh 调度器
 if [ -f "${SCRIPT_DIR_STATUSLINE}/query-balance.sh" ]; then
@@ -394,17 +376,47 @@ elif [ -f "${CONFIG_DIR}/query-balance.sh" ]; then
     balance_script="${CONFIG_DIR}/query-balance.sh"
 fi
 
+BALANCE_CACHE="$CACHE_DIR/balance_current.txt"
+BALANCE_MARKER="$CACHE_DIR/balance_refresh.marker"
+BALANCE_REFRESH_TTL=300  # 与 provider 缓存对齐，5 分钟内不重复 spawn 调度器
+
+# 同步路径：直接读统一缓存（read 内建，零 fork、零等待）
+if [ -f "$BALANCE_CACHE" ]; then
+    balance_result=""
+    read -r balance_result < "$BALANCE_CACHE" 2>/dev/null || true
+    [ -n "$balance_result" ] && balance_display="${c_gray}[${reset_color}${balance_result}${c_gray}]${reset_color}"
+fi
+
+# 后台异步刷新（节流：TTL 内不重复 spawn）。用 printf/read 内建取时间，避免 fork
 if [ -n "$balance_script" ] && [ -f "$balance_script" ]; then
-    balance_result=$(bash "$balance_script" 2>/dev/null || true)
-    if [ -n "$balance_result" ]; then
-        balance_display="${c_gray}[${reset_color}${balance_result}${c_gray}]${reset_color}"
+    _now=$(printf '%(%s)T' -1 2>/dev/null || date +%s)
+    _last_refresh_epoch=0
+    if [ -f "$BALANCE_MARKER" ]; then
+        read -r _last_refresh_epoch < "$BALANCE_MARKER" 2>/dev/null || true
+    fi
+    case "$_last_refresh_epoch" in ''|*[!0-9]*) _last_refresh_epoch=0 ;; esac
+    if [ $((_now - _last_refresh_epoch)) -ge "$BALANCE_REFRESH_TTL" ] 2>/dev/null; then
+        mkdir -p "$CACHE_DIR"
+        # 后台刷新，原子写（tmp + mv），失败不污染缓存
+        (
+            _tmp="${BALANCE_CACHE}.tmp.$$"
+            if bash "$balance_script" > "$_tmp" 2>/dev/null && [ -s "$_tmp" ]; then
+                mv "$_tmp" "$BALANCE_CACHE"
+            else
+                rm -f "$_tmp"
+            fi
+        ) &
+        printf '%s' "$_now" > "$BALANCE_MARKER"
     fi
 fi
 
 # ========== 输出生成 ==========
 # 下标数字映射
 subscript_digits() {
-    echo "$1" | sed 's/0/₀/g; s/1/₁/g; s/2/₂/g; s/3/₃/g; s/4/₄/g; s/5/₅/g; s/6/₆/g; s/7/₇/g; s/8/₈/g; s/9/₉/g'
+    local s="$1"
+    s="${s//0/₀}"; s="${s//1/₁}"; s="${s//2/₂}"; s="${s//3/₃}"; s="${s//4/₄}"
+    s="${s//5/₅}"; s="${s//6/₆}"; s="${s//7/₇}"; s="${s//8/₈}"; s="${s//9/₉}"
+    printf '%s' "$s"
 }
 used_pct_sub=$(subscript_digits "$used_pct")
 

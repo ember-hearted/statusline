@@ -234,7 +234,12 @@ async function parseTranscript(p) {
         console.error('Usage: node transcript-parser-lite.js <transcript.jsonl>');
         process.exit(1);
     }
-    console.log(JSON.stringify(await parseTranscript(p)));
+    const r = await parseTranscript(p);
+    // 输出 key=value，供 bash while read 内建解析（避免 bash 端 grep fork）
+    console.log(`tools_running=${r.tools.filter(t => t.status === 'running').length}`);
+    console.log(`agents_running=${r.agents.filter(a => a.status === 'running').length}`);
+    console.log(`todos_in_progress=${r.todos.filter(t => t.status === 'in_progress').length}`);
+    console.log(`todos_total=${r.todos.length}`);
 })().catch(e => {
     console.error('Error:', e.message);
     process.exit(1);
