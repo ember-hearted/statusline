@@ -77,17 +77,61 @@ parse_config() {
     echo "$default"
 }
 
-# 读取配置（使用新的嵌套结构）
-green_threshold=$(parse_config "colors.thresholds.green" "55")
-yellow_threshold=$(parse_config "colors.thresholds.yellow" "75")
-bar_length=$(parse_config "bar_length" "10")
-show_git=$(parse_config "panel.git.show_git" "true")
-show_time=$(parse_config "panel.show_time" "true")
-branch_color=$(parse_config "colors.branch" "33" | tr -d '"')  # 默认橙色(33)，确保去掉引号
-show_tools=$(parse_config "panel.show_tools" "true")
-show_agents=$(parse_config "panel.show_agents" "true")
-show_todos=$(parse_config "panel.show_todos" "true")
-show_git_changes=$(parse_config "panel.git.show_git_changes" "true")
+# 读取配置
+# 性能要点：原 parse_config 用 grep/sed 管道解析 JSON，在 Windows Git Bash 上每次
+# 调用约 1 秒（fork 子进程开销大），10 次调用累计 ~8.6 秒，是状态栏启动慢的元凶。
+# 改为一次 node 调用批量提取所有字段（~60ms）；node 不可用时 fallback 到 parse_config。
+green_threshold=55
+yellow_threshold=75
+bar_length=10
+show_git=true
+show_time=true
+branch_color=33
+show_tools=true
+show_agents=true
+show_todos=true
+show_git_changes=true
+
+if [ -f "$CONFIG_FILE" ] && command -v node >/dev/null 2>&1; then
+    # 一次 node 调用提取全部字段，输出 name="value" 供 eval 注入
+    _config_parsed=$(node -e '
+        const fs = require("fs");
+        let cfg = {};
+        try { cfg = JSON.parse(fs.readFileSync(process.argv[1], "utf8")); } catch {}
+        const get = (p, d) => {
+            let v = p.split(".").reduce((o, k) => (o == null ? o : o[k]), cfg);
+            return v == null ? d : v;
+        };
+        const fields = [
+            ["green_threshold",    "colors.thresholds.green",   55],
+            ["yellow_threshold",   "colors.thresholds.yellow",  75],
+            ["bar_length",         "bar_length",                10],
+            ["show_git",           "panel.git.show_git",        true],
+            ["show_time",          "panel.show_time",           true],
+            ["branch_color",       "colors.branch",             "33"],
+            ["show_tools",         "panel.show_tools",          true],
+            ["show_agents",        "panel.show_agents",         true],
+            ["show_todos",         "panel.show_todos",          true],
+            ["show_git_changes",   "panel.git.show_git_changes",true],
+        ];
+        for (const [name, path, dflt] of fields) {
+            process.stdout.write(name + "=" + JSON.stringify(String(get(path, dflt))) + "\n");
+        }
+    ' "$CONFIG_FILE" 2>/dev/null || true)
+    [ -n "$_config_parsed" ] && eval "$_config_parsed" || true
+else
+    # fallback：node 不可用时走原解析（慢，但功能可用）
+    green_threshold=$(parse_config "colors.thresholds.green" "55")
+    yellow_threshold=$(parse_config "colors.thresholds.yellow" "75")
+    bar_length=$(parse_config "bar_length" "10")
+    show_git=$(parse_config "panel.git.show_git" "true")
+    show_time=$(parse_config "panel.show_time" "true")
+    branch_color=$(parse_config "colors.branch" "33" | tr -d '"')  # 默认橙色(33)，确保去掉引号
+    show_tools=$(parse_config "panel.show_tools" "true")
+    show_agents=$(parse_config "panel.show_agents" "true")
+    show_todos=$(parse_config "panel.show_todos" "true")
+    show_git_changes=$(parse_config "panel.git.show_git_changes" "true")
+fi
 
 # 获取基本信息
 username=$(whoami 2>/dev/null || echo "user")
