@@ -192,7 +192,7 @@ install_cookie_refresh_deps() {
     # 检查 node
     if ! command -v node &> /dev/null; then
         print_warning "未检测到 Node.js，cookie 自动刷新功能不可用"
-        print_warning "安装 Node.js 后运行: cd $scripts_dir && npm install playwright && npx playwright install chromium"
+        print_warning "安装 Node.js 后运行: cd $scripts_dir && npm install playwright（刷新脚本复用系统 Chrome，无需下载 chromium）"
         return 0
     fi
 
@@ -204,7 +204,7 @@ install_cookie_refresh_deps() {
         npm init -y > /dev/null 2>&1
     fi
     npm install playwright 2>&1 | tail -1
-    npx playwright install chromium 2>&1 | tail -1
+    # npx playwright install chromium  # 跳过：cookie 刷新脚本复用系统 Chrome（channel:'chrome'），免下载 chromium 二进制
 
     cd "$PROJECT_ROOT"
     print_success "cookie 刷新依赖安装完成"
