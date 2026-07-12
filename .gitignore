@@ -18,9 +18,6 @@ skills-lock.json
 transcript-parser.js
 test-transcript.jsonl
 
-# Claude 项目记忆文件
-CLAUDE.md
-
 # 源代码备份（压缩后的工作文件已提交）
 scripts/*.src.js
 
