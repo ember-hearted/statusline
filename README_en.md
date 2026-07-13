@@ -75,6 +75,10 @@ bash bin/install.sh -u
 
 When upgrading by re-running `bash bin/install.sh`, the script backs up the old directory before overwriting. The `~/.claude/statusline/cache/` directory (which stores runtime state such as the Volcengine Ark Cookie and balance caches) is preserved during the overwrite, so you don't need to log in again or reconfigure the Cookie.
 
+### Platform Compatibility
+
+No extra Bash installation required: runs directly on macOS's built-in bash 3.2, Windows Git Bash/WSL, and Linux's default bash.
+
 ### Manual Installation
 
 If the install script doesn't work:

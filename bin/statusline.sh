@@ -311,7 +311,7 @@ fi
 # 时间（只显示时间，省略日期）
 time_display=""
 if [ "$show_time" = "true" ]; then
-    time_now=$(printf '%(%H:%M)T' -1 2>/dev/null)
+    time_now=$(printf '%(%H:%M)T' -1 2>/dev/null || date +%H:%M 2>/dev/null || echo "")
     case "$time_now" in ""|*T*|*'%'*) time_now=$(date +%H:%M 2>/dev/null || echo "") ;; esac
     [ -n "$time_now" ] && time_display=" ${sep} ${c_gray}${time_now}${reset_color}"
 fi
