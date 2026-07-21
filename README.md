@@ -28,10 +28,10 @@
 
 ```bash
 # 使用 curl 直接下载安装脚本并执行
-curl -fsSL https://raw.githubusercontent.com/ASmallMatch/statusline/master/bin/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/ember-hearted/statusline/master/bin/install.sh | bash
 
 # 或在 Claude Code 中直接运行
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/ASmallMatch/statusline/master/bin/install.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/ember-hearted/statusline/master/bin/install.sh)"
 ```
 
 安装完成后，在 Claude Code 中运行：
@@ -43,7 +43,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/ASmallMatch/statusline/m
 
 ```bash
 # 克隆仓库
-git clone git@github.com:ASmallMatch/statusline.git
+git clone git@github.com:ember-hearted/statusline.git
 cd statusline
 
 # 运行安装脚本
@@ -85,7 +85,7 @@ bash bin/install.sh -u
 
 ```bash
 # 1. 克隆仓库
-git clone git@github.com:ASmallMatch/statusline.git
+git clone git@github.com:ember-hearted/statusline.git
 cd statusline
 
 # 2. 创建安装目录

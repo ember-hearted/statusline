@@ -28,10 +28,10 @@ A cross-platform statusline script for Claude Code, featuring dynamic color prog
 
 ```bash
 # Download and run install script via curl
-curl -fsSL https://raw.githubusercontent.com/ASmallMatch/statusline/master/bin/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/ember-hearted/statusline/master/bin/install.sh | bash
 
 # Or run directly in Claude Code
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/ASmallMatch/statusline/master/bin/install.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/ember-hearted/statusline/master/bin/install.sh)"
 ```
 
 After installation, run in Claude Code:
@@ -43,7 +43,7 @@ After installation, run in Claude Code:
 
 ```bash
 # Clone repository
-git clone git@github.com:ASmallMatch/statusline.git
+git clone git@github.com:ember-hearted/statusline.git
 cd statusline
 
 # Run install script
@@ -85,7 +85,7 @@ If the install script doesn't work:
 
 ```bash
 # 1. Clone repository
-git clone git@github.com:ASmallMatch/statusline.git
+git clone git@github.com:ember-hearted/statusline.git
 cd statusline
 
 # 2. Create install directory
