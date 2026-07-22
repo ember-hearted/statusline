@@ -23,3 +23,24 @@ scripts/*.src.js
 
 # IDE 配置
 .idea/
+
+# ============================================
+# 以下规则由 setup-config-files 任务追加
+# ============================================
+
+# 环境变量和密钥
+.env
+*.key
+*.pem
+
+# 配置文件副本
+config.local.json
+
+# 缓存和运行时
+cache/
+tmp/
+*.log
+
+# 系统文件
+.DS_Store
+Thumbs.db

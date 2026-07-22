@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 💬 提问与讨论
+    url: https://github.com/ember-hearted/statusline/discussions
+    about: 在使用中有疑问？或者想讨论功能方向？请在 Discussions 中发起话题。
+  - name: 📖 使用文档
+    url: https://github.com/ember-hearted/statusline#readme
+    about: 查看 README 获取安装和配置说明
