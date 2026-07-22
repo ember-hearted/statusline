@@ -7,9 +7,29 @@
 
 ## [Unreleased]
 
+### Added
+
+- 社区规范：CODE_OF_CONDUCT.md、SECURITY.md、CONTRIBUTING.md
+- CI 配置：GitHub Actions（shellcheck + ubuntu/macos 矩阵测试）
+- Issue 模板（Bug 报告 / 功能建议）和 PR 模板
+- .editorconfig、.env.example 配置模板
+- 基于 git log 生成 CHANGELOG.md
+
 ### Changed
 
+- 增强 .gitignore（密钥/缓存/系统文件忽略规则）
+- 开启远程仓库 Wiki 功能
+- 启用 master 分支保护（需 PR + 1 人审查）
+
+### Other
+
 - 将仓库引用从 `ASmallMatch` 迁移至 `ember-hearted`
+
+## [0.6.0] - 2026-07-22
+
+### Added
+
+- 开源准备：社区规范、CI 配置、模板与文档补充（12 个文件，+665 行）
 
 ## [0.5.0] - 2026-07-13
 
@@ -108,7 +128,8 @@
 
 本项目各版本的提交历史可查阅 `git log`。
 
-[Unreleased]: https://github.com/ember-hearted/statusline/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/ember-hearted/statusline/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/ember-hearted/statusline/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/ember-hearted/statusline/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/ember-hearted/statusline/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/ember-hearted/statusline/compare/v0.2.0...v0.3.0
